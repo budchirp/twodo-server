@@ -2,6 +2,7 @@ package todo
 
 import (
 	"context"
+
 	"twodo-server/internal/db"
 	"twodo-server/internal/db/model"
 
@@ -34,13 +35,6 @@ func (service *Service) CreateTodo(user model.User, title string) (*model.Todo, 
 		return nil, UserNoCoupleError
 	}
 
-	// context := context.Background() // not needed for create structure, but needed for DB if using context?
-	// DB Adapter Create uses underlying GORM which might use background context implicitly if not provided.
-    // Wait, GORM usually takes context in specific calls like WithContext.
-    // My previous code: service.db.Adapter.Create(&todo).
-    // GORM's Create doesn't take context as arg.
-    // So context variable IS unused.
-
 	todo := model.Todo{
 		ID:        uuid.New().String(),
 		CoupleID:  *user.CoupleID,
@@ -61,8 +55,9 @@ func (service *Service) ListTodos(user model.User) ([]model.Todo, Error) {
 	}
 
 	context := context.Background()
+
 	var todos []model.Todo
-	// Using generic Find correctly: returns (results, error)
+
 	todos, err := gorm.G[model.Todo](service.db.Adapter).Where("couple_id = ?", *user.CoupleID).Find(context)
 	if err != nil {
 		return nil, DatabaseError
@@ -77,6 +72,7 @@ func (service *Service) GetTodo(user model.User, id string) (*model.Todo, Error)
 	}
 
 	context := context.Background()
+
 	todo, err := gorm.G[model.Todo](service.db.Adapter).Where("id = ?", id).First(context)
 	if err != nil {
 		return nil, TodoNotFoundError
@@ -95,6 +91,7 @@ func (service *Service) UpdateTodo(user model.User, id string, title *string, co
 	}
 
 	context := context.Background()
+
 	todo, err := gorm.G[model.Todo](service.db.Adapter).Where("id = ?", id).First(context)
 	if err != nil {
 		return nil, TodoNotFoundError
@@ -107,6 +104,7 @@ func (service *Service) UpdateTodo(user model.User, id string, title *string, co
 	if title != nil {
 		todo.Title = *title
 	}
+
 	if completed != nil {
 		todo.Completed = *completed
 	}
@@ -124,6 +122,7 @@ func (service *Service) DeleteTodo(user model.User, id string) Error {
 	}
 
 	context := context.Background()
+
 	todo, err := gorm.G[model.Todo](service.db.Adapter).Where("id = ?", id).First(context)
 	if err != nil {
 		return TodoNotFoundError

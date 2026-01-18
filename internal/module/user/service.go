@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+
 	"twodo-server/internal/db"
 	"twodo-server/internal/db/model"
 
@@ -72,7 +73,7 @@ func (service *Service) SendInvite(user model.User, id string) (*model.Invite, E
 	if err != nil {
 		return nil, UserNotFoundError
 	}
-	
+
 	invite := model.Invite{
 		ID:         uuid.New().String(),
 		SenderID:   user.ID,
@@ -150,7 +151,7 @@ func (service *Service) DeleteInvite(user model.User, id string) Error {
 	}
 
 	if invite.SenderID != user.ID {
-		return NotInviteSenderError 
+		return NotInviteSenderError
 	}
 
 	if err := service.db.Adapter.Delete(&invite).Error; err != nil {
