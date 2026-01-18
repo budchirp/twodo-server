@@ -10,6 +10,8 @@ import "github.com/joho/godotenv"
 
 type Config struct {
 	Port int
+
+	AuthApiUrl string
 }
 
 var (
@@ -33,8 +35,11 @@ func Load() error {
 			return
 		}
 
+		authApiUrl := GetKeyAsString("AUTH_API_URL", "http://localhost:8000")
+
 		instance = Config{
-			Port: port,
+			Port:       port,
+			AuthApiUrl: authApiUrl,
 		}
 	})
 
@@ -53,4 +58,13 @@ func GetKeyAsInt(key string, defaultValue int) (int, error) {
 	}
 
 	return value, nil
+}
+
+func GetKeyAsString(key string, defaultValue string) string {
+	env := os.Getenv(key)
+	if env == "" {
+		return defaultValue
+	}
+
+	return env
 }

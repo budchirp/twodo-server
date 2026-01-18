@@ -3,8 +3,11 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
+
+	"twodo-server/internal/config"
 	"twodo-server/internal/utils/response"
 )
 
@@ -30,9 +33,11 @@ func (middleware Middleware) Apply(next http.Handler) http.Handler {
 			return
 		}
 
+		config := config.Get()
+
 		client := &http.Client{}
 
-		req, err := http.NewRequest("GET", "http://localhost:8080/user", nil)
+		req, err := http.NewRequest("GET", fmt.Sprintf("%s/user", config.AuthApiUrl), nil)
 		if err != nil {
 			response.NewError("error.internal_server_error").Send(writer, http.StatusInternalServerError)
 			return
