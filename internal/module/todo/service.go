@@ -49,7 +49,7 @@ func (service *Service) CreateTodo(user model.User, title string) (*model.Todo, 
 	return &todo, None
 }
 
-func (service *Service) ListTodos(user model.User) ([]model.Todo, Error) {
+func (service *Service) GetTodos(user model.User) ([]model.Todo, Error) {
 	if user.CoupleID == nil {
 		return nil, UserNoCoupleError
 	}

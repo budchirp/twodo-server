@@ -51,7 +51,7 @@ func (handler *Handler) CreateTodo(request *http.Request) (int, response.ApiResp
 	}
 }
 
-func (handler *Handler) ListTodos(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) GetTodos(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
 	_, user := auth.GetUserID(request.Context(), handler.db)
@@ -59,7 +59,7 @@ func (handler *Handler) ListTodos(request *http.Request) (int, response.ApiRespo
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	data, err := handler.service.ListTodos(*user)
+	data, err := handler.service.GetTodos(*user)
 	switch err {
 	case UserNoCoupleError:
 		return http.StatusForbidden, response.NewError("error.user_no_couple")

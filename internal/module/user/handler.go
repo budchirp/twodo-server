@@ -47,7 +47,7 @@ func (handler *Handler) Initialize(request *http.Request) (int, response.ApiResp
 	return http.StatusOK, response.NewOK("success", nil)
 }
 
-func (handler *Handler) SendInvite(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) CreateInvite(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
 	var body models.SendInviteRequest
@@ -60,7 +60,7 @@ func (handler *Handler) SendInvite(request *http.Request) (int, response.ApiResp
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	data, err := handler.service.SendInvite(*user, body.User)
+	data, err := handler.service.CreateInvite(*user, body.User)
 	switch err {
 	case SelfInviteError:
 		return http.StatusBadRequest, response.NewError("error.self_invite")
@@ -80,7 +80,7 @@ func (handler *Handler) HandleInvite(request *http.Request) (int, response.ApiRe
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 		return http.StatusBadRequest, response.NewError("error.invalid_request_body")
 	}
-	
+
 	inviteID := chi.URLParam(request, "id")
 
 	_, user := auth.GetUserID(request.Context(), handler.db)
@@ -128,7 +128,7 @@ func (handler *Handler) DeleteInvite(request *http.Request) (int, response.ApiRe
 	}
 }
 
-func (handler *Handler) ListInvites(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) GetInvites(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
 	_, user := auth.GetUserID(request.Context(), handler.db)
@@ -136,12 +136,12 @@ func (handler *Handler) ListInvites(request *http.Request) (int, response.ApiRes
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	sent, received, err := handler.service.ListInvites(*user)
+	sent, received, err := handler.service.GetInvites(*user)
 	if err != None {
 		return http.StatusInternalServerError, response.NewError("error.list_invites_failed")
 	}
 
-	return http.StatusOK, response.NewOK("success", models.ListInvitesResponse{
+	return http.StatusOK, response.NewOK("success", models.GetInvitesResponse{
 		Sent:     sent,
 		Received: received,
 	})

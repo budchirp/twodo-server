@@ -62,7 +62,7 @@ func (service *Service) InitializeUser(id string) Error {
 	return None
 }
 
-func (service *Service) SendInvite(user model.User, id string) (*model.Invite, Error) {
+func (service *Service) CreateInvite(user model.User, id string) (*model.Invite, Error) {
 	if user.ID == id {
 		return nil, SelfInviteError
 	}
@@ -161,7 +161,7 @@ func (service *Service) DeleteInvite(user model.User, id string) Error {
 	return None
 }
 
-func (service *Service) ListInvites(user model.User) ([]model.Invite, []model.Invite, Error) {
+func (service *Service) GetInvites(user model.User) ([]model.Invite, []model.Invite, Error) {
 	context := context.Background()
 
 	sent, err := gorm.G[model.Invite](service.db.Adapter).Where("sender_id = ?", user.ID).Find(context)

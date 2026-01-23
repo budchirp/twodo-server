@@ -2,7 +2,7 @@ package models
 
 import "twodo-server/internal/db/model"
 
-type ListInvitesResponse struct {
+type GetInvitesResponse struct {
 	Sent     []model.Invite `json:"sent"`
 	Received []model.Invite `json:"received"`
 }
