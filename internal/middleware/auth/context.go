@@ -4,25 +4,35 @@ import (
 	"context"
 
 	"twodo-server/internal/db"
-	"twodo-server/internal/db/model"
+	"twodo-server/internal/db/models"
 
 	"gorm.io/gorm"
 )
 
 type key string
 
-const UserIDKey key = "UserID"
+const (
+	UserKey key = "User"
+)
 
-func GetUserID(requestContext context.Context, db db.DB) (*string, *model.User) {
+type AuthUser struct {
+	ID string
+
+	Username string
+
+	Picture *string
+}
+
+func GetUser(requestContext context.Context, db db.DB) (*AuthUser, *models.User) {
 	context := context.Background()
 
-	if id, ok := requestContext.Value(UserIDKey).(string); ok {
-		user, err := gorm.G[model.User](db.Adapter).Where("id = ?", id).First(context)
+	if user, ok := requestContext.Value(UserKey).(AuthUser); ok {
+		db, err := gorm.G[models.User](db.Adapter).Preload("Couple.Users", nil).Where("id = ?", user.ID).First(context)
 		if err != nil {
-			return &id, nil
+			return &user, nil
 		}
 
-		return &id, &user
+		return &user, &db
 	}
 
 	return nil, nil

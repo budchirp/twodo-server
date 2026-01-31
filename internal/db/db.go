@@ -1,8 +1,7 @@
 package db
 
 import (
-	"sync"
-	model2 "twodo-server/internal/db/model"
+	model2 "twodo-server/internal/db/models"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -13,7 +12,6 @@ type DB struct {
 }
 
 var (
-	once     sync.Once
 	instance DB
 )
 
@@ -22,24 +20,18 @@ func Get() DB {
 }
 
 func Load() error {
-	var err error
+	db, err := gorm.Open(sqlite.Open("db.sqlite"), &gorm.Config{})
+	if err != nil {
+		return err
+	}
 
-	once.Do(func() {
-		db, dbErr := gorm.Open(sqlite.Open("db.sqlite"), &gorm.Config{})
-		if dbErr != nil {
-			err = dbErr
-			return
-		}
+	if err := db.AutoMigrate(&model2.User{}, &model2.Couple{}, &model2.Invite{}, &model2.Todo{}); err != nil {
+		return err
+	}
 
-		if migrateErr := db.AutoMigrate(&model2.User{}, &model2.Couple{}, &model2.Invite{}, &model2.Todo{}); migrateErr != nil {
-			err = migrateErr
-			return
-		}
+	instance = DB{
+		Adapter: db,
+	}
 
-		instance = DB{
-			Adapter: db,
-		}
-	})
-
-	return err
+	return nil
 }

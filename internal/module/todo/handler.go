@@ -1,153 +1,184 @@
 package todo
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"twodo-server/internal/db"
+	"twodo-server/internal/db/models"
 	"twodo-server/internal/middleware/auth"
-	"twodo-server/internal/module/todo/models"
+	todoModels "twodo-server/internal/module/todo/models"
 	"twodo-server/internal/utils/i18n"
 	"twodo-server/internal/utils/response"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
-	service Service
-	db      db.DB
+	db db.DB
 }
 
 func NewHandler(db db.DB) Handler {
 	return Handler{
-		service: NewService(db),
-		db:      db,
+		db: db,
 	}
 }
 
-func (handler *Handler) CreateTodo(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) Create(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
-	var body models.CreateTodoRequest
+	var body todoModels.CreateTodoRequest
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 		return http.StatusBadRequest, response.NewError("error.invalid_request_body")
 	}
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	data, err := handler.service.CreateTodo(*user, body.Title)
-	switch err {
-	case UserNoCoupleError:
+	if user.CoupleID == nil {
 		return http.StatusForbidden, response.NewError("error.user_no_couple")
-	case DatabaseError:
-		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
-	case None:
-		return http.StatusCreated, response.NewOK("success", data)
-	default:
-		return http.StatusInternalServerError, response.NewError("error.unknown_error")
 	}
+
+	todo := models.Todo{
+		ID:        uuid.New().String(),
+		CoupleID:  *user.CoupleID,
+		Title:     body.Title,
+		Content:   "",
+		Completed: false,
+	}
+
+	if err := handler.db.Adapter.Create(&todo).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
+	}
+
+	return http.StatusCreated, response.NewOK("success", todoModels.NewTodoResponse(todo))
 }
 
-func (handler *Handler) GetTodos(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) GetAll(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	data, err := handler.service.GetTodos(*user)
-	switch err {
-	case UserNoCoupleError:
+	if user.CoupleID == nil {
 		return http.StatusForbidden, response.NewError("error.user_no_couple")
-	case DatabaseError:
-		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
-	case None:
-		return http.StatusOK, response.NewOK("success", data)
-	default:
-		return http.StatusInternalServerError, response.NewError("error.unknown_error")
 	}
+
+	var todos []models.Todo
+	todos, err := gorm.G[models.Todo](handler.db.Adapter).Where("couple_id = ?", *user.CoupleID).Find(context.Background())
+	if err != nil {
+		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
+	}
+
+	return http.StatusOK, response.NewOK("success", todoModels.NewTodosResponse(todos))
 }
 
-func (handler *Handler) GetTodo(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) Get(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
 	id := chi.URLParam(request, "id")
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	data, err := handler.service.GetTodo(*user, id)
-	switch err {
-	case UserNoCoupleError:
+	if user.CoupleID == nil {
 		return http.StatusForbidden, response.NewError("error.user_no_couple")
-	case TodoNotFoundError:
+	}
+
+	todo, err := gorm.G[models.Todo](handler.db.Adapter).Where("id = ?", id).First(context.Background())
+	if err != nil {
 		return http.StatusNotFound, response.NewError("error.todo_not_found")
-	case NotTodoOwnerError:
-		return http.StatusForbidden, response.NewError("error.not_todo_owner")
-	case None:
-		return http.StatusOK, response.NewOK("success", data)
-	default:
-		return http.StatusInternalServerError, response.NewError("error.unknown_error")
 	}
+
+	if todo.CoupleID != *user.CoupleID {
+		return http.StatusForbidden, response.NewError("error.not_todo_owner")
+	}
+
+	return http.StatusOK, response.NewOK("success", todoModels.NewTodoResponse(todo))
 }
 
-func (handler *Handler) UpdateTodo(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) Update(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
 	id := chi.URLParam(request, "id")
 
-	var body models.UpdateTodoRequest
+	var body todoModels.UpdateTodoRequest
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 		return http.StatusBadRequest, response.NewError("error.invalid_request_body")
 	}
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	data, err := handler.service.UpdateTodo(*user, id, body.Title, body.Completed)
-	switch err {
-	case UserNoCoupleError:
+	if user.CoupleID == nil {
 		return http.StatusForbidden, response.NewError("error.user_no_couple")
-	case TodoNotFoundError:
-		return http.StatusNotFound, response.NewError("error.todo_not_found")
-	case NotTodoOwnerError:
-		return http.StatusForbidden, response.NewError("error.not_todo_owner")
-	case None:
-		return http.StatusOK, response.NewOK("success", data)
-	default:
-		return http.StatusInternalServerError, response.NewError("error.unknown_error")
 	}
+
+	todo, err := gorm.G[models.Todo](handler.db.Adapter).Where("id = ?", id).First(context.Background())
+	if err != nil {
+		return http.StatusNotFound, response.NewError("error.todo_not_found")
+	}
+
+	if todo.CoupleID != *user.CoupleID {
+		return http.StatusForbidden, response.NewError("error.not_todo_owner")
+	}
+
+	if body.Title != nil {
+		todo.Title = *body.Title
+	}
+
+	if body.Content != nil {
+		todo.Content = *body.Content
+	}
+
+	if body.Completed != nil {
+		todo.Completed = *body.Completed
+	}
+
+	if err := handler.db.Adapter.Save(&todo).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
+	}
+
+	return http.StatusOK, response.NewOK("success", todoModels.NewTodoResponse(todo))
 }
 
-func (handler *Handler) DeleteTodo(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) Delete(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
 	id := chi.URLParam(request, "id")
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	err := handler.service.DeleteTodo(*user, id)
-	switch err {
-	case UserNoCoupleError:
+	if user.CoupleID == nil {
 		return http.StatusForbidden, response.NewError("error.user_no_couple")
-	case TodoNotFoundError:
-		return http.StatusNotFound, response.NewError("error.todo_not_found")
-	case NotTodoOwnerError:
-		return http.StatusForbidden, response.NewError("error.not_todo_owner")
-	case None:
-		return http.StatusOK, response.NewOK("success", nil)
-	default:
-		return http.StatusInternalServerError, response.NewError("error.unknown_error")
 	}
+
+	todo, err := gorm.G[models.Todo](handler.db.Adapter).Where("id = ?", id).First(context.Background())
+	if err != nil {
+		return http.StatusNotFound, response.NewError("error.todo_not_found")
+	}
+
+	if todo.CoupleID != *user.CoupleID {
+		return http.StatusForbidden, response.NewError("error.not_todo_owner")
+	}
+
+	if err := handler.db.Adapter.Delete(&todo).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
+	}
+
+	return http.StatusOK, response.NewOK("success", nil)
 }

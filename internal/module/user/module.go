@@ -27,11 +27,11 @@ func (module Module) Register(router *chi.Mux) {
 	router.Route("/user", func(router chi.Router) {
 		router.Use(auth.NewMiddleware().Apply)
 
+		router.Get("/", response.Adapt(module.handler.Get))
 		router.Post("/initialize", response.Adapt(module.handler.Initialize))
 
 		router.Post("/invite", response.Adapt(module.handler.CreateInvite))
 		router.Get("/invite/all", response.Adapt(module.handler.GetInvites))
 		router.Patch("/invite/{id}", response.Adapt(module.handler.HandleInvite))
-		router.Delete("/invite/{id}", response.Adapt(module.handler.DeleteInvite))
 	})
 }

@@ -1,4 +1,4 @@
-package model
+package models
 
 import "time"
 
@@ -11,7 +11,7 @@ type Invite struct {
 	ReceiverID string `json:"receiver_id"`
 	Receiver   *User  `gorm:"foreignKey:ReceiverID" json:"receiver"`
 
-	Status string `json:"status"` // "pending", "accepted", "declined"
+	Status string `json:"status"` // pending, accepted, declined
 
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

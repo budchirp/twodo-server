@@ -18,9 +18,15 @@ func NewMiddleware() Middleware {
 	return Middleware{}
 }
 
-type userResponse struct {
+type UserResponse struct {
 	Data struct {
 		ID string `json:"id"`
+
+		Username string `json:"username"`
+
+		Profile struct {
+			Picture *string `json:"picture"`
+		} `json:"profile"`
 	} `json:"data"`
 }
 
@@ -46,25 +52,30 @@ func (middleware Middleware) Apply(next http.Handler) http.Handler {
 		req.Header.Set("Authorization", header)
 
 		resp, err := client.Do(req)
+		defer resp.Body.Close()
+
 		if err != nil {
 			response.NewError("error.auth_server_unavailable").Send(writer, http.StatusServiceUnavailable)
 			return
 		}
-		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusOK {
 			response.NewError("error.unauthorized").Send(writer, http.StatusUnauthorized)
 			return
 		}
 
-		var userResp userResponse
-		if err := json.NewDecoder(resp.Body).Decode(&userResp); err != nil {
+		var data UserResponse
+		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 			response.NewError("error.auth_server_error").Send(writer, http.StatusInternalServerError)
 			return
 		}
 
-		// Inject user ID into context
-		ctx := context.WithValue(request.Context(), UserIDKey, userResp.Data.ID)
+		ctx := context.WithValue(request.Context(), UserKey, AuthUser{
+			ID:       data.Data.ID,
+			Username: data.Data.Username,
+			Picture:  data.Data.Profile.Picture,
+		})
+
 		next.ServeHTTP(writer, request.WithContext(ctx))
 	})
 }

@@ -27,6 +27,6 @@ func (module Module) Register(router *chi.Mux) {
 	router.Route("/couple", func(router chi.Router) {
 		router.Use(auth.NewMiddleware().Apply)
 
-		router.Post("/leave", response.Adapt(module.handler.LeaveCouple))
+		router.Post("/leave", response.Adapt(module.handler.Leave))
 	})
 }

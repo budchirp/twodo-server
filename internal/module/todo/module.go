@@ -27,10 +27,10 @@ func (module Module) Register(router *chi.Mux) {
 	router.Route("/todo", func(router chi.Router) {
 		router.Use(auth.NewMiddleware().Apply)
 
-		router.Post("/", response.Adapt(module.handler.CreateTodo))
-		router.Get("/all", response.Adapt(module.handler.GetTodos))
-		router.Get("/{id}", response.Adapt(module.handler.GetTodo))
-		router.Patch("/{id}", response.Adapt(module.handler.UpdateTodo))
-		router.Delete("/{id}", response.Adapt(module.handler.DeleteTodo))
+		router.Post("/", response.Adapt(module.handler.Create))
+		router.Get("/all", response.Adapt(module.handler.GetAll))
+		router.Get("/{id}", response.Adapt(module.handler.Get))
+		router.Patch("/{id}", response.Adapt(module.handler.Update))
+		router.Delete("/{id}", response.Adapt(module.handler.Delete))
 	})
 }

@@ -1,40 +1,53 @@
 package couple
 
 import (
+	"context"
 	"net/http"
 
 	"twodo-server/internal/db"
+	"twodo-server/internal/db/models"
 	"twodo-server/internal/middleware/auth"
 	"twodo-server/internal/utils/i18n"
 	"twodo-server/internal/utils/response"
+
+	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type Handler struct {
-	service Service
-	db      db.DB
+	db db.DB
 }
 
 func NewHandler(db db.DB) Handler {
 	return Handler{
-		service: NewService(db),
-		db:      db,
+		db: db,
 	}
 }
 
-func (handler *Handler) LeaveCouple(request *http.Request) (int, response.ApiResponse) {
+func (handler *Handler) Leave(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	switch handler.service.LeaveCouple(*user) {
-	case DatabaseError:
-		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
-	case None:
+	if user.CoupleID == nil {
 		return http.StatusOK, response.NewOK("success", nil)
-	default:
-		return http.StatusInternalServerError, response.NewError("error.leave_couple_failed")
 	}
+
+	newCouple := models.Couple{
+		ID: uuid.New().String(),
+	}
+
+	if err := gorm.G[models.Couple](handler.db.Adapter).Create(context.Background(), &newCouple); err != nil {
+		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
+	}
+
+	user.CoupleID = &newCouple.ID
+	if err := handler.db.Adapter.Save(&user).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
+	}
+
+	return http.StatusOK, response.NewOK("success", nil)
 }

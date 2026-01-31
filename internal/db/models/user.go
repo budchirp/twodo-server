@@ -1,9 +1,14 @@
-package model
+package models
 
 import "time"
 
 type User struct {
 	ID string `gorm:"primaryKey" json:"id"`
+
+	Username string `gorm:"uniqueIndex" json:"username"`
+	Name     string `json:"name"`
+
+	Picture *string `json:"picture"`
 
 	CoupleID *string `json:"couple_id"`
 	Couple   *Couple `gorm:"foreignKey:CoupleID" json:"couple"`

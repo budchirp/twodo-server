@@ -1,148 +1,215 @@
 package user
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 
 	"twodo-server/internal/db"
+	"twodo-server/internal/db/models"
 	"twodo-server/internal/middleware/auth"
-	"twodo-server/internal/module/user/models"
+	userModels "twodo-server/internal/module/user/models"
 	"twodo-server/internal/utils/i18n"
 	"twodo-server/internal/utils/response"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type Handler struct {
-	service Service
-	db      db.DB
+	db db.DB
 }
 
 func NewHandler(db db.DB) Handler {
 	return Handler{
-		service: NewService(db),
-		db:      db,
+		db: db,
 	}
 }
 
 func (handler *Handler) Initialize(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
-	id, user := auth.GetUserID(request.Context(), handler.db)
-	if id == nil {
-		return http.StatusUnauthorized, response.NewError("error.unauthorized")
-	}
+	auth, user := auth.GetUser(request.Context(), handler.db)
 
-	if user == nil {
-		err := handler.service.InitializeUser(*id)
-		switch err {
-		case DatabaseError:
-			return http.StatusInternalServerError, response.NewError("error.user_init_failed")
-
-		case None:
-			return http.StatusCreated, response.NewOK("success", nil)
+	var coupleID string
+	if user != nil && user.CoupleID != nil {
+		coupleID = *user.CoupleID
+	} else {
+		couple := models.Couple{
+			ID: uuid.New().String(),
 		}
+
+		if err := handler.db.Adapter.Create(&couple).Error; err != nil {
+			return http.StatusInternalServerError, response.NewError("error.user_init_failed")
+		}
+		coupleID = couple.ID
 	}
 
-	return http.StatusOK, response.NewOK("success", nil)
+	initializedUser := models.User{
+		ID:       auth.ID,
+		Name:     auth.Username,
+		Picture:  auth.Picture,
+		CoupleID: &coupleID,
+	}
+
+	if err := handler.db.Adapter.Clauses(clause.OnConflict{
+		UpdateAll: true,
+	}).Create(&initializedUser).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.user_init_failed")
+	}
+
+	if user != nil {
+		*user = initializedUser
+	}
+
+	return http.StatusCreated, response.NewOK("success", nil)
+}
+
+func (handler *Handler) Get(request *http.Request) (int, response.ApiResponse) {
+	_ = i18n.Load(request)
+
+	_, user := auth.GetUser(request.Context(), handler.db)
+	if user == nil {
+		return http.StatusNotFound, response.NewError("error.user_not_found")
+	}
+
+	return http.StatusOK, response.NewOK("success", userModels.NewUserResponse(*user))
 }
 
 func (handler *Handler) CreateInvite(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
-	var body models.SendInviteRequest
+	var body userModels.SendInviteRequest
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 		return http.StatusBadRequest, response.NewError("error.invalid_request_body")
 	}
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	data, err := handler.service.CreateInvite(*user, body.User)
-	switch err {
-	case SelfInviteError:
+	var receiver models.User
+	var err error
+
+	receiver, err = gorm.G[models.User](handler.db.Adapter).Where("username = ?", body.User).First(context.Background())
+	if err != nil {
+		receiver, err = gorm.G[models.User](handler.db.Adapter).Where("id = ?", body.User).First(context.Background())
+		if err != nil {
+			return http.StatusNotFound, response.NewError("error.user_not_found")
+		}
+	}
+
+	if user.ID == receiver.ID {
 		return http.StatusBadRequest, response.NewError("error.self_invite")
-	case UserNotFoundError:
-		return http.StatusNotFound, response.NewError("error.user_not_found")
-	case None:
-		return http.StatusCreated, response.NewOK("success", data)
-	default:
+	}
+
+	invite := models.Invite{
+		ID:         uuid.New().String(),
+		SenderID:   user.ID,
+		ReceiverID: receiver.ID,
+		Status:     "pending",
+	}
+
+	if err := handler.db.Adapter.Create(&invite).Error; err != nil {
 		return http.StatusInternalServerError, response.NewError("error.invite_send_failed")
 	}
+
+	return http.StatusCreated, response.NewOK("success", invite)
 }
+
+type InviteAction string
+
+const (
+	InviteActionAccept InviteAction = "accept"
+	InviteActionReject InviteAction = "reject"
+)
 
 func (handler *Handler) HandleInvite(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
-	var body models.HandleInviteRequest
+	var body userModels.HandleInviteRequest
 	if err := json.NewDecoder(request.Body).Decode(&body); err != nil {
 		return http.StatusBadRequest, response.NewError("error.invalid_request_body")
 	}
 
 	inviteID := chi.URLParam(request, "id")
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	switch handler.service.HandleInvite(body.Action, *user, inviteID) {
-	case InviteNotFoundError:
-		return http.StatusNotFound, response.NewError("error.invite_not_found")
-	case NotInviteReceiverError:
-		return http.StatusForbidden, response.NewError("error.not_invite_receiver")
-	case CoupleFullError:
-		return http.StatusConflict, response.NewError("error.couple_full")
-	case UserNotFoundError:
-		return http.StatusNotFound, response.NewError("error.user_not_found")
-	case InvalidActionError:
+	if body.Action != string(InviteActionAccept) && body.Action != string(InviteActionReject) {
 		return http.StatusBadRequest, response.NewError("error.invalid_action")
-	case None:
+	}
+
+	invite, err := gorm.G[models.Invite](handler.db.Adapter).Where("id = ?", inviteID).First(context.Background())
+	if err != nil {
+		return http.StatusNotFound, response.NewError("error.invite_not_found")
+	}
+
+	receiver, err := gorm.G[models.User](handler.db.Adapter).Where("id = ?", invite.ReceiverID).First(context.Background())
+	if err != nil {
+		return http.StatusNotFound, response.NewError("error.user_not_found")
+	}
+
+	if user.ID != receiver.ID {
+		return http.StatusForbidden, response.NewError("error.not_invite_receiver")
+	}
+
+	if InviteAction(body.Action) == InviteActionReject {
+		invite.Status = "rejected"
+		if err := handler.db.Adapter.Save(&invite).Error; err != nil {
+			return http.StatusInternalServerError, response.NewError("error.invite_handle_failed")
+		}
 		return http.StatusOK, response.NewOK("success", nil)
-	default:
+	}
+
+	sender, err := gorm.G[models.User](handler.db.Adapter).Where("id = ?", invite.SenderID).First(context.Background())
+	if err != nil {
+		return http.StatusNotFound, response.NewError("error.user_not_found")
+	}
+
+	var count int64
+	handler.db.Adapter.Model(&models.User{}).Where("couple_id = ?", sender.CoupleID).Count(&count)
+
+	if count >= 2 {
+		return http.StatusConflict, response.NewError("error.couple_full")
+	}
+
+	receiver.CoupleID = sender.CoupleID
+	if err := handler.db.Adapter.Save(&receiver).Error; err != nil {
 		return http.StatusInternalServerError, response.NewError("error.invite_handle_failed")
 	}
-}
 
-func (handler *Handler) DeleteInvite(request *http.Request) (int, response.ApiResponse) {
-	_ = i18n.Load(request)
-
-	inviteID := chi.URLParam(request, "id")
-
-	_, user := auth.GetUserID(request.Context(), handler.db)
-	if user == nil {
-		return http.StatusNotFound, response.NewError("error.user_not_found")
+	invite.Status = "accepted"
+	if err := handler.db.Adapter.Save(&invite).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.invite_handle_failed")
 	}
 
-	switch handler.service.DeleteInvite(*user, inviteID) {
-	case InviteNotFoundError:
-		return http.StatusNotFound, response.NewError("error.invite_not_found")
-	case NotInviteSenderError:
-		return http.StatusForbidden, response.NewError("error.not_invite_sender")
-	case None:
-		return http.StatusOK, response.NewOK("success", nil)
-	default:
-		return http.StatusInternalServerError, response.NewError("error.delete_invite_failed")
-	}
+	return http.StatusOK, response.NewOK("success", nil)
 }
 
 func (handler *Handler) GetInvites(request *http.Request) (int, response.ApiResponse) {
 	_ = i18n.Load(request)
 
-	_, user := auth.GetUserID(request.Context(), handler.db)
+	_, user := auth.GetUser(request.Context(), handler.db)
 	if user == nil {
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	sent, received, err := handler.service.GetInvites(*user)
-	if err != None {
+	sent, err := gorm.G[models.Invite](handler.db.Adapter).Preload("Receiver", nil).Where("sender_id = ?", user.ID).Find(context.Background())
+	if err != nil {
 		return http.StatusInternalServerError, response.NewError("error.list_invites_failed")
 	}
 
-	return http.StatusOK, response.NewOK("success", models.GetInvitesResponse{
-		Sent:     sent,
-		Received: received,
-	})
+	received, err := gorm.G[models.Invite](handler.db.Adapter).Preload("Sender", nil).Where("receiver_id = ?", user.ID).Find(context.Background())
+	if err != nil {
+		return http.StatusInternalServerError, response.NewError("error.list_invites_failed")
+	}
+
+	return http.StatusOK, response.NewOK("success", userModels.NewInvitesResponse(sent, received))
 }
