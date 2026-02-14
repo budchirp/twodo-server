@@ -18,16 +18,19 @@ func NewMiddleware() Middleware {
 	return Middleware{}
 }
 
-type UserResponse struct {
-	Data struct {
+type AuthUserResponseData struct {
 		ID string `json:"id"`
 
 		Username string `json:"username"`
 
 		Profile struct {
+			Name *string `json:"name"`
 			Picture *string `json:"picture"`
-		} `json:"profile"`
-	} `json:"data"`
+		} 
+}
+
+type AuthUserResponse struct {
+	Data AuthUserResponseData `json:"data"`
 }
 
 func (middleware Middleware) Apply(next http.Handler) http.Handler {
@@ -64,17 +67,13 @@ func (middleware Middleware) Apply(next http.Handler) http.Handler {
 			return
 		}
 
-		var data UserResponse
+		var data AuthUserResponse
 		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
 			response.NewError("error.auth_server_error").Send(writer, http.StatusInternalServerError)
 			return
 		}
 
-		ctx := context.WithValue(request.Context(), UserKey, AuthUser{
-			ID:       data.Data.ID,
-			Username: data.Data.Username,
-			Picture:  data.Data.Profile.Picture,
-		})
+		ctx := context.WithValue(request.Context(), UserKey, data.Data)
 
 		next.ServeHTTP(writer, request.WithContext(ctx))
 	})

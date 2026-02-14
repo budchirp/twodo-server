@@ -12,21 +12,13 @@ import (
 type key string
 
 const (
-	UserKey key = "User"
+	UserKey key = "Username"
 )
 
-type AuthUser struct {
-	ID string
-
-	Username string
-
-	Picture *string
-}
-
-func GetUser(requestContext context.Context, db db.DB) (*AuthUser, *models.User) {
+func GetUser(requestContext context.Context, db db.DB) (*AuthUserResponseData, *models.User) {
 	context := context.Background()
 
-	if user, ok := requestContext.Value(UserKey).(AuthUser); ok {
+	if user, ok := requestContext.Value(UserKey).(AuthUserResponseData); ok {
 		db, err := gorm.G[models.User](db.Adapter).Preload("Couple.Users", nil).Where("id = ?", user.ID).First(context)
 		if err != nil {
 			return &user, nil

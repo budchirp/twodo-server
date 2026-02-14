@@ -1,7 +1,6 @@
 package couple
 
 import (
-	"context"
 	"net/http"
 
 	"twodo-server/internal/db"
@@ -9,9 +8,6 @@ import (
 	"twodo-server/internal/middleware/auth"
 	"twodo-server/internal/utils/i18n"
 	"twodo-server/internal/utils/response"
-
-	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type Handler struct {
@@ -36,17 +32,17 @@ func (handler *Handler) Leave(request *http.Request) (int, response.ApiResponse)
 		return http.StatusOK, response.NewOK("success", nil)
 	}
 
-	newCouple := models.Couple{
-		ID: uuid.New().String(),
-	}
+	oldCoupleID := *user.CoupleID
 
-	if err := gorm.G[models.Couple](handler.db.Adapter).Create(context.Background(), &newCouple); err != nil {
-		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
-	}
-
-	user.CoupleID = &newCouple.ID
+	user.CoupleID = nil
 	if err := handler.db.Adapter.Save(&user).Error; err != nil {
 		return http.StatusInternalServerError, response.NewError("error.internal_server_error")
+	}
+
+	var count int64
+	handler.db.Adapter.Model(&models.User{}).Where("couple_id = ?", oldCoupleID).Count(&count)
+	if count == 0 {
+		handler.db.Adapter.Delete(&models.Couple{}, "id = ?", oldCoupleID)
 	}
 
 	return http.StatusOK, response.NewOK("success", nil)

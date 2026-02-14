@@ -33,25 +33,21 @@ func (handler *Handler) Initialize(request *http.Request) (int, response.ApiResp
 
 	auth, user := auth.GetUser(request.Context(), handler.db)
 
-	var coupleID string
-	if user != nil && user.CoupleID != nil {
-		coupleID = *user.CoupleID
-	} else {
-		couple := models.Couple{
-			ID: uuid.New().String(),
-		}
-
-		if err := handler.db.Adapter.Create(&couple).Error; err != nil {
-			return http.StatusInternalServerError, response.NewError("error.user_init_failed")
-		}
-		coupleID = couple.ID
+	name := auth.Username
+	if auth.Profile.Name != nil {
+		name = *auth.Profile.Name
 	}
 
 	initializedUser := models.User{
 		ID:       auth.ID,
-		Name:     auth.Username,
-		Picture:  auth.Picture,
-		CoupleID: &coupleID,
+		Username: auth.Username,
+		Name:     name,
+		Picture:  auth.Profile.Picture,
+		CoupleID: nil,
+	}
+
+	if user != nil && user.CoupleID != nil {
+		initializedUser.CoupleID = user.CoupleID
 	}
 
 	if err := handler.db.Adapter.Clauses(clause.OnConflict{
@@ -91,15 +87,9 @@ func (handler *Handler) CreateInvite(request *http.Request) (int, response.ApiRe
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	var receiver models.User
-	var err error
-
-	receiver, err = gorm.G[models.User](handler.db.Adapter).Where("username = ?", body.User).First(context.Background())
+	receiver, err := gorm.G[models.User](handler.db.Adapter).Where("username = ?", body.Username).First(context.Background())
 	if err != nil {
-		receiver, err = gorm.G[models.User](handler.db.Adapter).Where("id = ?", body.User).First(context.Background())
-		if err != nil {
-			return http.StatusNotFound, response.NewError("error.user_not_found")
-		}
+		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
 	if user.ID == receiver.ID {
@@ -173,14 +163,35 @@ func (handler *Handler) HandleInvite(request *http.Request) (int, response.ApiRe
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	var count int64
-	handler.db.Adapter.Model(&models.User{}).Where("couple_id = ?", sender.CoupleID).Count(&count)
-
-	if count >= 2 {
-		return http.StatusConflict, response.NewError("error.couple_full")
+	if sender.CoupleID != nil {
+		var count int64
+		handler.db.Adapter.Model(&models.User{}).Where("couple_id = ?", sender.CoupleID).Count(&count)
+		if count >= 2 {
+			return http.StatusConflict, response.NewError("error.couple_full")
+		}
 	}
 
-	receiver.CoupleID = sender.CoupleID
+	if receiver.CoupleID != nil {
+		var count int64
+		handler.db.Adapter.Model(&models.User{}).Where("couple_id = ?", receiver.CoupleID).Count(&count)
+		if count >= 2 {
+			return http.StatusConflict, response.NewError("error.couple_full")
+		}
+	}
+
+	couple := models.Couple{
+		ID: uuid.New().String(),
+	}
+	if err := handler.db.Adapter.Create(&couple).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.invite_handle_failed")
+	}
+
+	sender.CoupleID = &couple.ID
+	if err := handler.db.Adapter.Save(&sender).Error; err != nil {
+		return http.StatusInternalServerError, response.NewError("error.invite_handle_failed")
+	}
+
+	receiver.CoupleID = &couple.ID
 	if err := handler.db.Adapter.Save(&receiver).Error; err != nil {
 		return http.StatusInternalServerError, response.NewError("error.invite_handle_failed")
 	}
@@ -201,12 +212,12 @@ func (handler *Handler) GetInvites(request *http.Request) (int, response.ApiResp
 		return http.StatusNotFound, response.NewError("error.user_not_found")
 	}
 
-	sent, err := gorm.G[models.Invite](handler.db.Adapter).Preload("Receiver", nil).Where("sender_id = ?", user.ID).Find(context.Background())
+	sent, err := gorm.G[models.Invite](handler.db.Adapter).Preload("Sender", nil).Preload("Receiver", nil).Where("sender_id = ?", user.ID).Find(context.Background())
 	if err != nil {
 		return http.StatusInternalServerError, response.NewError("error.list_invites_failed")
 	}
 
-	received, err := gorm.G[models.Invite](handler.db.Adapter).Preload("Sender", nil).Where("receiver_id = ?", user.ID).Find(context.Background())
+	received, err := gorm.G[models.Invite](handler.db.Adapter).Preload("Sender", nil).Preload("Receiver", nil).Where("receiver_id = ?", user.ID).Find(context.Background())
 	if err != nil {
 		return http.StatusInternalServerError, response.NewError("error.list_invites_failed")
 	}

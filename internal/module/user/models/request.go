@@ -1,7 +1,7 @@
 package models
 
 type SendInviteRequest struct {
-	User string `json:"user"`
+	Username string `json:"username"`
 }
 
 type HandleInviteRequest struct {
