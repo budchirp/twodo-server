@@ -1,0 +1,23 @@
+{
+  "success": "Success",
+  "error.auth_server_error": "Auth server error",
+  "error.auth_server_unavailable": "Auth server unavailable",
+  "error.duplicate_invite": "A pending invite already exists for these users",
+  "error.internal_server_error": "Internal server error",
+  "error.invite_not_found": "Invite not found",
+  "error.invite_not_pending": "Invite has already been handled",
+  "error.invite_send_failed": "Failed to send invite",
+  "error.leave_couple_failed": "Failed to leave couple",
+  "error.note_not_found": "Note not found",
+  "error.not_invite_receiver": "You are not the receiver of this invite",
+  "error.not_note_owner": "You are not the owner of this note",
+  "error.receiver_in_couple": "Receiver is already in a couple",
+  "error.route_not_found": "Route not found",
+  "error.self_invite": "Cannot invite yourself",
+  "error.sender_in_couple": "You are already in a couple",
+  "error.unauthorized": "Unauthorized",
+  "error.user_init_failed": "Failed to initialize user",
+  "error.user_no_couple": "You are not in a couple",
+  "error.user_not_found": "User not found",
+  "error.validation_failed": "Validation failed"
+}
