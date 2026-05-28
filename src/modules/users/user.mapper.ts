@@ -1,14 +1,15 @@
 import { Couple } from '../couples/entities/couple.entity';
 import { UserDto, UserSummaryDto } from './dtos/response.dto';
 import { User } from './entities/user.entity';
+import { isUserProfileCompleted } from './user-profile.util';
 
 export class UserMapper {
   static toUserSummary(user: User): UserSummaryDto {
     return {
       id: user.id,
       username: user.username,
-      displayName: user.displayName,
-      pictureUrl: user.pictureUrl,
+      name: user.name,
+      picture: user.picture,
       gender: user.gender,
     };
   }
@@ -16,6 +17,7 @@ export class UserMapper {
   static toUserResponse(user: User, couple: Couple | null): UserDto {
     return {
       ...UserMapper.toUserSummary(user),
+      profileCompleted: isUserProfileCompleted(user),
       couple: couple
         ? {
             id: couple.id,

@@ -1,6 +1,7 @@
 import { HttpStatus, ValidationError, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ApiException } from './core/exceptions/api.exception';
 import { AppModule } from './modules/app.module';
 
@@ -27,6 +28,15 @@ async function main() {
         ),
     }),
   );
+
+  const openApiConfig = new DocumentBuilder()
+    .setTitle('Twodo API')
+    .setDescription('HTTP API for Twodo clients')
+    .setVersion('0.1.0')
+    .addBearerAuth()
+    .build();
+  const openApiDocument = SwaggerModule.createDocument(app, openApiConfig);
+  SwaggerModule.setup('docs', app, openApiDocument);
 
   const config = app.get(ConfigService);
   await app.listen(config.getOrThrow<number>('PORT'));

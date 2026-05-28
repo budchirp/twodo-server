@@ -4,9 +4,11 @@ import { Repository } from 'typeorm';
 import { ApiException } from '../../core/exceptions/api.exception';
 import { ExternalAuthUser } from '../../core/auth/auth.types';
 import { CoupleMember } from '../couples/entities/couple-member.entity';
+import { UpdateUserProfileDto } from './dtos/request.dto';
 import { UserDto } from './dtos/response.dto';
 import { User } from './entities/user.entity';
 import { UserMapper } from './user.mapper';
+import { isUserGender } from './user-profile.util';
 
 @Injectable()
 export class UsersService {
@@ -18,12 +20,15 @@ export class UsersService {
   ) {}
 
   async initialize(externalUser: ExternalAuthUser): Promise<UserDto> {
+    const name = externalUser.profile.name?.trim() || externalUser.username;
     const user = this.users.create({
       id: externalUser.id,
       username: externalUser.username,
-      displayName: externalUser.profile.name ?? externalUser.username,
-      pictureUrl: externalUser.profile.picture ?? null,
-      gender: externalUser.profile.gender ?? null,
+      name,
+      picture: externalUser.profile.picture ?? null,
+      gender: isUserGender(externalUser.profile.gender)
+        ? externalUser.profile.gender
+        : null,
     });
 
     try {
@@ -53,5 +58,28 @@ export class UsersService {
     });
 
     return UserMapper.toUserResponse(user, membership?.couple ?? null);
+  }
+
+  async updateCurrentUserProfile(
+    user: User | null,
+    body: UpdateUserProfileDto,
+  ): Promise<UserDto> {
+    if (!user) {
+      throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND);
+    }
+
+    const name = body.name.trim();
+    if (name === '') {
+      throw new ApiException('error.invalid_profile_data', HttpStatus.BAD_REQUEST);
+    }
+
+    if (!isUserGender(body.gender)) {
+      throw new ApiException('error.invalid_gender', HttpStatus.BAD_REQUEST);
+    }
+
+    user.name = name;
+    user.gender = body.gender;
+
+    return this.getCurrentUser(await this.users.save(user));
   }
 }

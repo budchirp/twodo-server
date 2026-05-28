@@ -7,6 +7,7 @@ import { EnvValidator } from '../core/env/env.validator';
 import { ApiExceptionFilter } from '../core/filters/api-exception.filter';
 import { I18nModule } from '../core/i18n/i18n.module';
 import { ApiResponseInterceptor } from '../core/interceptors/api-response.interceptor';
+import { CalendarModule } from './calendar/calendar.module';
 import { CouplesModule } from './couples/couple.module';
 import { InvitesModule } from './invites/invite.module';
 import { NotesModule } from './notes/note.module';
@@ -27,6 +28,7 @@ import { UsersModule } from './users/user.module';
     CouplesModule,
     InvitesModule,
     NotesModule,
+    CalendarModule,
   ],
   providers: [
     {

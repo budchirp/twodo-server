@@ -5,6 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { CalendarEntry } from '../../calendar/entities/calendar-entry.entity';
 import { Note } from '../../notes/entities/note.entity';
 import { CoupleMember } from './couple-member.entity';
 
@@ -18,6 +19,9 @@ export class Couple {
 
   @OneToMany(() => Note, (note) => note.couple)
   notes: Note[];
+
+  @OneToMany(() => CalendarEntry, (entry) => entry.couple)
+  calendarEntries: CalendarEntry[];
 
   @CreateDateColumn({ name: 'created_at', type: 'datetime' })
   createdAt: Date;
