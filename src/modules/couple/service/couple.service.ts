@@ -17,9 +17,7 @@ export class CoupleService {
   ) {}
 
   async getCurrentCouple(user: User | null): Promise<CoupleDto | null> {
-    if (!user) {
-      throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
-    }
+    if (!user) throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
 
     const membership = await this.members.findOne({
       where: { userId: user.id },
@@ -29,29 +27,18 @@ export class CoupleService {
     return membership ? CoupleMapper.toCoupleResponse(membership.couple) : null
   }
 
-  async leaveCouple(user: User | null) {
-    if (!user) {
-      throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
-    }
+  async leaveCouple(user: User | null): Promise<null> {
+    if (!user) throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
 
     try {
       await this.dataSource.transaction(async (manager) => {
-        const membership = await manager.findOne(CoupleMember, {
-          where: { userId: user.id }
-        })
-
-        if (!membership) {
-          return
-        }
+        const membership = await manager.findOne(CoupleMember, { where: { userId: user.id } })
+        if (!membership) return
 
         const coupleId = membership.coupleId
         await manager.remove(CoupleMember, membership)
 
-        const remainingMembers = await manager.count(CoupleMember, {
-          where: { coupleId }
-        })
-
-        if (remainingMembers === 0) {
+        if ((await manager.count(CoupleMember, { where: { coupleId } })) === 0) {
           await manager.delete(Couple, { id: coupleId })
         }
       })

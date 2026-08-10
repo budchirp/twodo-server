@@ -8,23 +8,27 @@ import {
 } from '@/modules/calendar/entity/calendar.enums'
 import type {
   CalendarEntryDto,
+  CalendarPredictionSummaryDto,
   PeriodPredictionDto,
   PeriodRangeDto,
   PeriodTrackerSummaryDto
 } from '@/modules/calendar/dto/response.dto'
-import type {
+import {
   CreateCalendarEntryDto,
   ListCalendarEntriesDto,
   UpdateCalendarEntryDto
 } from '@/modules/calendar/dto/request.dto'
-import { MenstrualCyclePredictionService } from '@/modules/calendar/service/menstrual-cycle-prediction.service'
 import {
   addDays,
   datesBetweenInclusive,
   daysBetween,
   parseDateString
 } from '@/modules/calendar/util/calendar-date.util'
+import { PregnancyAssessmentService } from '@/modules/calendar/service/pregnancy-assessment.service'
 import { CalendarSexualActivityDetail } from '@/modules/calendar/entity/calendar-sexual-activity-detail.entity'
+import { MenstrualCyclePredictionService } from '@/modules/calendar/service/menstrual-cycle-prediction.service'
+import { FertilityWindowService } from '@/modules/calendar/service/fertility-window.service'
+import { ConceptionRiskService } from '@/modules/calendar/service/conception-risk.service'
 import { Between, DataSource, EntityManager, LessThanOrEqual, Repository } from 'typeorm'
 import { CalendarPeriodDetail } from '@/modules/calendar/entity/calendar-period-detail.entity'
 import { PeriodTrackerService } from '@/modules/calendar/service/period-tracker.service'
@@ -44,6 +48,9 @@ export class CalendarService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly predictions: MenstrualCyclePredictionService,
+    private readonly fertilityWindowService: FertilityWindowService,
+    private readonly conceptionRiskService: ConceptionRiskService,
+    private readonly pregnancyAssessmentService: PregnancyAssessmentService,
     private readonly periodTracker: PeriodTrackerService,
     @InjectRepository(CalendarEntry)
     private readonly entries: Repository<CalendarEntry>,
@@ -317,27 +324,41 @@ export class CalendarService {
     return null
   }
 
-  async getPeriodTrackerSummary(user: User | null): Promise<PeriodTrackerSummaryDto> {
+  async getPredictionSummary(user: User | null): Promise<CalendarPredictionSummaryDto> {
     const ranges = await this.periodRanges(user)
-    const cycles = this.periodTracker.cycleHistory(ranges)
-    const prediction = ranges.length > 0 ? this.predictions.predict(ranges) : null
+    const prediction = this.predictions.predict(ranges)
+    const fertilityWindow = this.fertilityWindowService.estimateFertilityWindow(prediction)
+    const sexualActivityEntries = await this.sexualActivityEntries(user)
+    const conceptionRisk = this.conceptionRiskService.assessRisk(
+      sexualActivityEntries,
+      fertilityWindow
+    )
+    const pregnancyAssessment = this.pregnancyAssessmentService.assessPregnancyStatus(
+      prediction,
+      fertilityWindow,
+      conceptionRisk
+    )
 
     return {
-      ranges,
-      cycles,
-      averageCycleLengthDays: prediction?.cycleLengthDays ?? null,
-      averagePeriodDurationDays: prediction?.periodDurationDays ?? null,
-      prediction
+      cyclePrediction: prediction,
+      fertilityWindow,
+      conceptionRisk,
+      pregnancyAssessment
     }
   }
 
-  async getPeriodPrediction(user: User | null): Promise<PeriodPredictionDto> {
-    const ranges = await this.periodRanges(user)
-    if (ranges.length === 0) {
-      throw new ApiException('error.prediction_unavailable', HttpStatus.CONFLICT)
-    }
+  private async sexualActivityEntries(user: User | null): Promise<CalendarEntry[]> {
+    const currentUser = this.completedUser(user)
+    const membership = await this.currentMembership(currentUser)
 
-    return this.predictions.predict(ranges)
+    return this.entries.find({
+      where: {
+        coupleId: membership.coupleId,
+        type: CalendarActivityType.SexualActivity
+      },
+      relations: { sexualActivityDetail: true },
+      order: { date: 'DESC' }
+    })
   }
 
   private async periodRanges(user: User | null): Promise<PeriodRangeDto[]> {

@@ -21,7 +21,6 @@ export class AuthService {
 
     const externalUser = await this.fetchExternalUser(authorization)
     const user = await this.users.findOne({ where: { id: externalUser.id } })
-
     return { externalUser, user }
   }
 
@@ -44,12 +43,10 @@ export class AuthService {
       clearTimeout(timeout)
     }
 
-    if (!response.ok) {
-      throw new ApiException('error.unauthorized', HttpStatus.UNAUTHORIZED)
-    }
+    if (!response.ok) throw new ApiException('error.unauthorized', HttpStatus.UNAUTHORIZED)
 
-    const body = (await response.json().catch(() => null)) as unknown
-    if (!this.isExternalAuthResponse(body)) {
+    const body = (await response.json().catch(() => null)) as any
+    if (!body?.data?.id || !body?.data?.username) {
       throw new ApiException('error.auth_server_error', HttpStatus.INTERNAL_SERVER_ERROR)
     }
 
@@ -62,21 +59,5 @@ export class AuthService {
         gender: body.data.profile?.gender ?? null
       }
     }
-  }
-
-  private isExternalAuthResponse(body: unknown): body is {
-    data: ExternalAuthUser
-  } {
-    if (!body || typeof body !== 'object' || !('data' in body)) {
-      return false
-    }
-
-    const data = (body as { data: unknown }).data
-    if (!data || typeof data !== 'object') {
-      return false
-    }
-
-    const authUser = data as Partial<ExternalAuthUser>
-    return typeof authUser.id === 'string' && typeof authUser.username === 'string'
   }
 }

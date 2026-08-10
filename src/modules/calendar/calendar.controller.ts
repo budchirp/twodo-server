@@ -13,6 +13,7 @@ import {
   ListCalendarEntriesDto,
   UpdateCalendarEntryDto
 } from '@/modules/calendar/dto/request.dto'
+import { CalendarEntryDto, CalendarPredictionSummaryDto } from '@/modules/calendar/dto/response.dto'
 import {
   Body,
   Controller,
@@ -29,7 +30,6 @@ import { ProfileCompletionGuard } from '@/modules/auth/guard/profile-completion.
 import { ApiSuccessResponse } from '@/core/openapi/api-success-response.decorator'
 import { CalendarService } from '@/modules/calendar/service/calendar.service'
 import type { AuthenticatedRequest } from '@/modules/auth/auth.types'
-import { CalendarEntryDto } from '@/modules/calendar/dto/response.dto'
 import { AuthGuard } from '@/modules/auth/guard/auth.guard'
 import { ApiErrorEnvelopeDto } from '@/core/openapi/api-response.dto'
 
@@ -62,6 +62,15 @@ export class CalendarController {
     @Query() query: ListCalendarEntriesDto
   ): Promise<CalendarEntryDto[]> {
     return this.calendarService.listEntries(request.auth.user, query)
+  }
+
+  @Get('predictions/summary')
+  @ApiOperation({ summary: 'Get fertility, conception risk, and pregnancy prediction summary' })
+  @ApiSuccessResponse({ type: CalendarPredictionSummaryDto })
+  getPredictionSummary(
+    @Req() request: AuthenticatedRequest
+  ): Promise<CalendarPredictionSummaryDto> {
+    return this.calendarService.getPredictionSummary(request.auth.user)
   }
 
   @Get(':id')

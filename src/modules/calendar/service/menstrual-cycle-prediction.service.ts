@@ -1,192 +1,103 @@
 import { addDays, daysBetween, todayDateString } from '@/modules/calendar/util/calendar-date.util'
 import type { PeriodPredictionDto, PeriodRangeDto } from '@/modules/calendar/dto/response.dto'
+import type { WeightedRegressionEstimate } from '@/core/tensorflow/tensorflow.types'
 import { PeriodPredictionReliability } from '@/modules/calendar/entity/calendar.enums'
+import { TensorflowService } from '@/core/tensorflow/tensorflow.service'
 import { Injectable } from '@nestjs/common'
 
-// Domain Constants
 const DEFAULT_CYCLE_LENGTH_DAYS = 28
 const DEFAULT_PERIOD_DURATION_DAYS = 5
 const MIN_PREDICTED_CYCLE_LENGTH_DAYS = 21
 const MAX_PREDICTED_CYCLE_LENGTH_DAYS = 45
 const MIN_PREDICTED_PERIOD_DURATION_DAYS = 1
 const MAX_PREDICTED_PERIOD_DURATION_DAYS = 10
-
 const MIN_USABLE_CYCLE_LENGTH_DAYS = 15
 const MAX_USABLE_CYCLE_LENGTH_DAYS = 60
 const MIN_USABLE_PERIOD_DURATION_DAYS = 1
 const MAX_USABLE_PERIOD_DURATION_DAYS = 14
-
 const RECENCY_DECAY_FACTOR = 0.75
 const DISCLAIMER =
   'Predictions are estimates and are not medical diagnosis or contraception advice.'
-
-type RegressionEstimate = {
-  prediction: number
-  slope: number
-}
 
 type CycleModelEstimate = {
   basis: string
   cycleLengthDays: number
   modelDisagreementDays: number
   recentIrregularity: boolean
-  regression: RegressionEstimate | null
+  regression: WeightedRegressionEstimate | null
   sampleCount: number
   variabilityDays: number
   weightedAverageDays: number | null
 }
 
-/**
- * Encapsulates pure statistical and mathematical utility functions.
- */
 class MathUtils {
   static mean(values: number[]): number {
-    if (values.length === 0) return 0
-    return values.reduce((sum, value) => sum + value, 0) / values.length
+    return values.length === 0 ? 0 : values.reduce((sum, v) => sum + v, 0) / values.length
   }
 
   static median(values: number[]): number {
     if (values.length === 0) return 0
     const sorted = [...values].sort((a, b) => a - b)
-    const midpoint = Math.floor(sorted.length / 2)
-
-    return sorted.length % 2 === 0
-      ? MathUtils.mean([sorted[midpoint - 1], sorted[midpoint]])
-      : sorted[midpoint]
+    const mid = Math.floor(sorted.length / 2)
+    return sorted.length % 2 === 0 ? MathUtils.mean([sorted[mid - 1], sorted[mid]]) : sorted[mid]
   }
 
-  static clamp(value: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, value))
+  static clamp(val: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, val))
   }
 
-  static roundToOneDecimal(value: number): number {
-    return Math.round(value * 10) / 10
+  static roundToOneDecimal(val: number): number {
+    return Math.round(val * 10) / 10
   }
 
-  /**
-   * Filters extreme outliers using Median Absolute Deviation (MAD).
-   */
   static filterOutliersMad(values: number[], minThreshold = 9): number[] {
-    if (values.length < 4) {
-      return values
-    }
-
+    if (values.length < 4) return values
     const med = MathUtils.median(values)
-    const deviations = values.map((val) => Math.abs(val - med))
-    const mad = MathUtils.median(deviations)
-
-    if (mad === 0) {
-      return values
-    }
-
+    const mad = MathUtils.median(values.map((v) => Math.abs(v - med)))
+    if (mad === 0) return values
     const threshold = Math.max(minThreshold, mad * 1.4826 * 3)
-    return values.filter((val) => Math.abs(val - med) <= threshold)
+    return values.filter((v) => Math.abs(v - med) <= threshold)
   }
 
-  /**
-   * Generates exponential recency weights: w_i = decay^(len - 1 - i)
-   */
-  static recencyWeights(length: number, decay = RECENCY_DECAY_FACTOR): number[] {
-    return Array.from({ length }, (_, i) => Math.pow(decay, length - i - 1))
-  }
-}
-
-/**
- * Encapsulates weighted statistical and linear regression computations.
- * Evaluated with ordinary TypeScript double-precision floating point arithmetic
- * for zero memory leaks, zero Node C++ binding deprecation issues, and 100% numerical equivalence.
- */
-class TensorMathService {
-  static weightedAverage(values: number[]): number {
-    if (values.length === 0) return 0
-    const weights = MathUtils.recencyWeights(values.length)
-    const sumWeight = weights.reduce((sum, w) => sum + w, 0)
-    const sumWeightedVal = values.reduce((sum, val, i) => sum + val * weights[i], 0)
-    return sumWeightedVal / sumWeight
-  }
-
-  static weightedStandardDeviation(values: number[]): number {
-    if (values.length <= 1) return 0
-    const weights = MathUtils.recencyWeights(values.length)
-    const sumWeight = weights.reduce((sum, w) => sum + w, 0)
-    const avg = TensorMathService.weightedAverage(values)
-    const weightedVar = values.reduce((sum, val, i) => sum + weights[i] * Math.pow(val - avg, 2), 0)
-    return Math.sqrt(weightedVar / sumWeight)
-  }
-
-  static weightedLinearRegression(values: number[]): RegressionEstimate {
-    const weights = MathUtils.recencyWeights(values.length)
-    const sumWeight = weights.reduce((sum, w) => sum + w, 0)
-    const sumX = values.reduce((sum, _, i) => sum + i * weights[i], 0)
-    const sumY = values.reduce((sum, val, i) => sum + val * weights[i], 0)
-    const sumXX = values.reduce((sum, _, i) => sum + i * i * weights[i], 0)
-    const sumXY = values.reduce((sum, val, i) => sum + i * val * weights[i], 0)
-
-    const denominator = sumWeight * sumXX - sumX * sumX
-
-    if (Math.abs(denominator) < Number.EPSILON) {
-      const fallbackPred = TensorMathService.weightedAverage(values)
-      return { prediction: fallbackPred, slope: 0 }
-    }
-
-    const slope = (sumWeight * sumXY - sumX * sumY) / denominator
-    const intercept = (sumY - slope * sumX) / sumWeight
-    const rawPrediction = intercept + slope * values.length
-
-    return {
-      prediction: MathUtils.clamp(
-        rawPrediction,
-        MIN_PREDICTED_CYCLE_LENGTH_DAYS,
-        MAX_PREDICTED_CYCLE_LENGTH_DAYS
-      ),
-      slope
-    }
+  static recencyWeights(length: number): number[] {
+    return Array.from({ length }, (_, i) => RECENCY_DECAY_FACTOR ** (length - i - 1))
   }
 }
 
 @Injectable()
 export class MenstrualCyclePredictionService {
-  /**
-   * High-level orchestration pipeline for period and ovulation prediction.
-   */
+  constructor(private readonly tensorflow: TensorflowService) {}
+
   predict(ranges: PeriodRangeDto[]): PeriodPredictionDto {
-    const sortedRanges = [...ranges].sort((a, b) => a.startDate.localeCompare(b.startDate))
+    const sorted = [...ranges].sort((a, b) => a.startDate.localeCompare(b.startDate))
+    if (sorted.length === 0) return this.buildEmptyPrediction()
 
-    if (sortedRanges.length === 0) {
-      return this.buildEmptyPrediction()
-    }
+    const rawCycleLengths = sorted
+      .slice(1)
+      .map((r, i) => daysBetween(sorted[i].startDate, r.startDate))
+      .filter((l) => l >= MIN_USABLE_CYCLE_LENGTH_DAYS && l <= MAX_USABLE_CYCLE_LENGTH_DAYS)
 
-    const rawCycleLengths = this.extractCycleLengths(sortedRanges)
     const filteredCycleLengths = MathUtils.filterOutliersMad(rawCycleLengths)
-
-    const completedDurations = sortedRanges
-      .filter((range) => range.isComplete)
-      .map((range) => range.durationDays)
-      .filter(
-        (duration) =>
-          duration >= MIN_USABLE_PERIOD_DURATION_DAYS && duration <= MAX_USABLE_PERIOD_DURATION_DAYS
-      )
+    const completedDurations = sorted
+      .filter((r) => r.isComplete)
+      .map((r) => r.durationDays)
+      .filter((d) => d >= MIN_USABLE_PERIOD_DURATION_DAYS && d <= MAX_USABLE_PERIOD_DURATION_DAYS)
 
     const cycleModel = this.estimateCycleModel(filteredCycleLengths)
     const periodDurationDays = this.estimatePeriodDuration(completedDurations)
     const reliability = this.evaluateReliability(cycleModel)
 
-    const latestStartDate = sortedRanges[sortedRanges.length - 1].startDate
     const expectedPeriodStartDate = this.nextFutureStartDate(
-      latestStartDate,
+      sorted[sorted.length - 1].startDate,
       cycleModel.cycleLengthDays
     )
     const expectedPeriodEndDate = addDays(expectedPeriodStartDate, periodDurationDays - 1)
-    const predictionUncertaintyDays = this.calculateUncertaintyDays(reliability, cycleModel)
     const ovulationDate = addDays(expectedPeriodStartDate, -14)
 
     return {
       hasEnoughData: cycleModel.sampleCount >= 2,
       reliability,
-      nextPeriodWindow: {
-        startDate: expectedPeriodStartDate,
-        endDate: expectedPeriodEndDate
-      },
+      nextPeriodWindow: { startDate: expectedPeriodStartDate, endDate: expectedPeriodEndDate },
       ovulationWindow: {
         startDate: addDays(ovulationDate, -5),
         endDate: addDays(ovulationDate, 1)
@@ -196,7 +107,7 @@ export class MenstrualCyclePredictionService {
       cycleLengthDays: cycleModel.cycleLengthDays,
       periodDurationDays,
       cycleLengthVariabilityDays: cycleModel.sampleCount > 1 ? cycleModel.variabilityDays : null,
-      predictionUncertaintyDays,
+      predictionUncertaintyDays: this.calculateUncertaintyDays(reliability, cycleModel),
       recentIrregularity: cycleModel.recentIrregularity,
       basis: cycleModel.basis,
       disclaimer: DISCLAIMER
@@ -221,15 +132,6 @@ export class MenstrualCyclePredictionService {
     }
   }
 
-  private extractCycleLengths(sortedRanges: PeriodRangeDto[]): number[] {
-    return sortedRanges
-      .slice(1)
-      .map((range, index) => daysBetween(sortedRanges[index].startDate, range.startDate))
-      .filter(
-        (length) => length >= MIN_USABLE_CYCLE_LENGTH_DAYS && length <= MAX_USABLE_CYCLE_LENGTH_DAYS
-      )
-  }
-
   private estimateCycleModel(cycleLengths: number[]): CycleModelEstimate {
     if (cycleLengths.length === 0) {
       return {
@@ -244,9 +146,18 @@ export class MenstrualCyclePredictionService {
       }
     }
 
-    const weightedAverage = TensorMathService.weightedAverage(cycleLengths)
+    const weights = MathUtils.recencyWeights(cycleLengths.length)
+    const weightedAverage = this.tensorflow.weightedAverage(cycleLengths, weights)
+
     const regression =
-      cycleLengths.length >= 3 ? TensorMathService.weightedLinearRegression(cycleLengths) : null
+      cycleLengths.length >= 3
+        ? this.tensorflow.weightedLinearRegression(
+            cycleLengths,
+            weights,
+            MIN_PREDICTED_CYCLE_LENGTH_DAYS,
+            MAX_PREDICTED_CYCLE_LENGTH_DAYS
+          )
+        : null
 
     const stableRegressionPrediction = regression
       ? MathUtils.clamp(regression.prediction, weightedAverage - 3, weightedAverage + 3)
@@ -263,16 +174,13 @@ export class MenstrualCyclePredictionService {
       MIN_PREDICTED_CYCLE_LENGTH_DAYS,
       MAX_PREDICTED_CYCLE_LENGTH_DAYS
     )
-
     const variabilityDays = MathUtils.roundToOneDecimal(
-      cycleLengths.length > 1 ? TensorMathService.weightedStandardDeviation(cycleLengths) : 0
+      cycleLengths.length > 1 ? this.tensorflow.weightedStandardDeviation(cycleLengths, weights) : 0
     )
-
     const modelDisagreementDays =
       stableRegressionPrediction !== null
         ? MathUtils.roundToOneDecimal(Math.abs(stableRegressionPrediction - weightedAverage))
         : 0
-
     const recentCycleLength = cycleLengths[cycleLengths.length - 1]
 
     return {
@@ -290,29 +198,23 @@ export class MenstrualCyclePredictionService {
   }
 
   private estimatePeriodDuration(completedDurations: number[]): number {
-    const filteredDurations = MathUtils.filterOutliersMad(completedDurations)
-
-    if (filteredDurations.length === 0) {
-      return DEFAULT_PERIOD_DURATION_DAYS
-    }
-
+    const filtered = MathUtils.filterOutliersMad(completedDurations)
+    if (filtered.length === 0) return DEFAULT_PERIOD_DURATION_DAYS
     return MathUtils.clamp(
-      Math.round(TensorMathService.weightedAverage(filteredDurations)),
+      Math.round(
+        this.tensorflow.weightedAverage(filtered, MathUtils.recencyWeights(filtered.length))
+      ),
       MIN_PREDICTED_PERIOD_DURATION_DAYS,
       MAX_PREDICTED_PERIOD_DURATION_DAYS
     )
   }
 
   private evaluateReliability(model: CycleModelEstimate): PeriodPredictionReliability {
-    if (model.sampleCount === 0) {
-      return PeriodPredictionReliability.InsufficientData
-    }
-    if (model.sampleCount === 1 || model.variabilityDays > 7 || model.modelDisagreementDays > 5) {
+    if (model.sampleCount === 0) return PeriodPredictionReliability.InsufficientData
+    if (model.sampleCount === 1 || model.variabilityDays > 7 || model.modelDisagreementDays > 5)
       return PeriodPredictionReliability.Low
-    }
-    if (model.sampleCount >= 4 && model.variabilityDays <= 3 && model.modelDisagreementDays <= 2) {
+    if (model.sampleCount >= 4 && model.variabilityDays <= 3 && model.modelDisagreementDays <= 2)
       return PeriodPredictionReliability.High
-    }
     return PeriodPredictionReliability.Medium
   }
 
@@ -334,16 +236,10 @@ export class MenstrualCyclePredictionService {
     model: CycleModelEstimate
   ): number {
     const uncertainty = Math.ceil(model.variabilityDays * 0.6 + model.modelDisagreementDays * 0.4)
-
-    if (reliability === PeriodPredictionReliability.High) {
-      return MathUtils.clamp(uncertainty, 1, 2)
-    }
-    if (reliability === PeriodPredictionReliability.Medium) {
+    if (reliability === PeriodPredictionReliability.High) return MathUtils.clamp(uncertainty, 1, 2)
+    if (reliability === PeriodPredictionReliability.Medium)
       return MathUtils.clamp(uncertainty, 2, 4)
-    }
-    if (reliability === PeriodPredictionReliability.Low) {
-      return MathUtils.clamp(uncertainty, 3, 6)
-    }
+    if (reliability === PeriodPredictionReliability.Low) return MathUtils.clamp(uncertainty, 3, 6)
     return 4
   }
 }

@@ -63,3 +63,19 @@ export enum PeriodPredictionReliability {
   Low = 'low',
   Medium = 'medium'
 }
+
+export enum ConceptionRiskLevel {
+  High = 'high',
+  Low = 'low',
+  Moderate = 'moderate',
+  None = 'none',
+  Unknown = 'unknown'
+}
+
+export enum PregnancyAssessmentStatus {
+  NotDue = 'not_due',
+  PeriodDue = 'period_due',
+  PeriodLate = 'period_late',
+  PossiblePregnancy = 'possible_pregnancy',
+  Unknown = 'unknown'
+}

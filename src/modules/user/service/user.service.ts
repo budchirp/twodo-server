@@ -20,16 +20,12 @@ export class UserService {
   ) {}
 
   async initialize(externalUser: ExternalAuthUser): Promise<UserDto> {
-    const name = externalUser.profile.name?.trim() || externalUser.username
-    const gender: UserGender | null = isUserGender(externalUser.profile.gender)
-      ? externalUser.profile.gender
-      : null
     const user = this.users.create({
       id: externalUser.id,
       username: externalUser.username,
-      name,
+      name: externalUser.profile.name?.trim() || externalUser.username,
       picture: externalUser.profile.picture ?? null,
-      gender
+      gender: isUserGender(externalUser.profile.gender) ? externalUser.profile.gender : null
     })
 
     try {
@@ -38,17 +34,11 @@ export class UserService {
       throw new ApiException('error.user_init_failed', HttpStatus.INTERNAL_SERVER_ERROR)
     }
 
-    const savedUser = await this.users.findOneOrFail({
-      where: { id: externalUser.id }
-    })
-
-    return this.getCurrentUser(savedUser)
+    return this.getCurrentUser(await this.users.findOneOrFail({ where: { id: externalUser.id } }))
   }
 
   async getCurrentUser(user: User | null): Promise<UserDto> {
-    if (!user) {
-      throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
-    }
+    if (!user) throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
 
     const membership = await this.members.findOne({
       where: { userId: user.id },
@@ -59,22 +49,14 @@ export class UserService {
   }
 
   async updateCurrentUserProfile(user: User | null, body: UpdateUserProfileDto): Promise<UserDto> {
-    if (!user) {
-      throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
-    }
-
+    if (!user) throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
     const name = body.name.trim()
-    if (name === '') {
-      throw new ApiException('error.invalid_profile_data', HttpStatus.BAD_REQUEST)
-    }
-
-    if (!isUserGender(body.gender)) {
+    if (!name) throw new ApiException('error.invalid_profile_data', HttpStatus.BAD_REQUEST)
+    if (!isUserGender(body.gender))
       throw new ApiException('error.invalid_gender', HttpStatus.BAD_REQUEST)
-    }
 
     user.name = name
     user.gender = body.gender
-
     return this.getCurrentUser(await this.users.save(user))
   }
 }

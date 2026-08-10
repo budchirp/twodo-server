@@ -20,78 +20,48 @@ export class NoteService {
 
   async listNotes(user: User | null): Promise<NoteDto[]> {
     const coupleId = await this.currentCoupleId(user)
-    const notes = await this.notes.find({
-      where: { coupleId },
-      order: { createdAt: 'DESC' }
-    })
-
-    return notes.map((note) => NoteMapper.toNoteResponse(note))
+    return (await this.notes.find({ where: { coupleId }, order: { createdAt: 'DESC' } })).map(
+      NoteMapper.toNoteResponse
+    )
   }
 
   async createNote(user: User | null, body: CreateNoteDto): Promise<NoteDto> {
     const coupleId = await this.currentCoupleId(user)
     const note = await this.notes.save(
-      this.notes.create({
-        coupleId,
-        title: body.title,
-        content: body.content ?? ''
-      })
+      this.notes.create({ coupleId, title: body.title, content: body.content ?? '' })
     )
-
     return NoteMapper.toNoteResponse(note)
   }
 
   async getNote(user: User | null, id: string): Promise<NoteDto> {
-    const coupleId = await this.currentCoupleId(user)
-    const note = await this.noteForCouple(id, coupleId)
-
-    return NoteMapper.toNoteResponse(note)
+    return NoteMapper.toNoteResponse(await this.noteForCouple(id, await this.currentCoupleId(user)))
   }
 
   async updateNote(user: User | null, id: string, body: UpdateNoteDto): Promise<NoteDto> {
-    const coupleId = await this.currentCoupleId(user)
-    const note = await this.noteForCouple(id, coupleId)
-
-    if (body.title !== undefined) {
-      note.title = body.title
-    }
-    if (body.content !== undefined) {
-      note.content = body.content
-    }
+    const note = await this.noteForCouple(id, await this.currentCoupleId(user))
+    if (body.title !== undefined) note.title = body.title
+    if (body.content !== undefined) note.content = body.content
     return NoteMapper.toNoteResponse(await this.notes.save(note))
   }
 
-  async deleteNote(user: User | null, id: string) {
-    const coupleId = await this.currentCoupleId(user)
-    const note = await this.noteForCouple(id, coupleId)
-
+  async deleteNote(user: User | null, id: string): Promise<null> {
+    const note = await this.noteForCouple(id, await this.currentCoupleId(user))
     await this.notes.remove(note)
     return null
   }
 
   private async currentCoupleId(user: User | null): Promise<string> {
-    if (!user) {
-      throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
-    }
-
+    if (!user) throw new ApiException('error.user_not_found', HttpStatus.NOT_FOUND)
     const membership = await this.members.findOne({ where: { userId: user.id } })
-    if (!membership) {
-      throw new ApiException('error.user_no_couple', HttpStatus.FORBIDDEN)
-    }
-
+    if (!membership) throw new ApiException('error.user_no_couple', HttpStatus.FORBIDDEN)
     return membership.coupleId
   }
 
   private async noteForCouple(id: string, coupleId: string): Promise<Note> {
     const note = await this.notes.findOne({ where: { id } })
-    if (!note) {
-      throw new ApiException('error.note_not_found', HttpStatus.NOT_FOUND)
-    }
-
-    if (note.coupleId !== coupleId) {
+    if (!note) throw new ApiException('error.note_not_found', HttpStatus.NOT_FOUND)
+    if (note.coupleId !== coupleId)
       throw new ApiException('error.not_note_owner', HttpStatus.FORBIDDEN)
-    }
-
     return note
   }
 }
