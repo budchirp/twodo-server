@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
-import { ServerController } from './server.controller';
+import { ServerController } from '@/modules/server/server.controller'
+import { Module } from '@nestjs/common'
 
 @Module({
-  controllers: [ServerController],
+  controllers: [ServerController]
 })
 export class ServerModule {}

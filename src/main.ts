@@ -1,19 +1,21 @@
-import { HttpStatus, ValidationError, ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ApiException } from './core/exceptions/api.exception';
-import { AppModule } from './modules/app.module';
+import { HttpStatus, ValidationPipe } from '@nestjs/common'
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { ApiException } from '@/core/exception/api.exception'
+import type { ValidationError } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
+import { AppModule } from '@/modules/app.module'
+import { NestFactory } from '@nestjs/core'
+import 'reflect-metadata'
 
 function createValidationDetails(errors: ValidationError[]) {
   return errors.map((error) => ({
     field: error.property,
-    messages: Object.values(error.constraints ?? {}),
-  }));
+    messages: Object.values(error.constraints ?? {})
+  }))
 }
 
 async function main() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule)
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -24,22 +26,24 @@ async function main() {
         new ApiException(
           'error.validation_failed',
           HttpStatus.BAD_REQUEST,
-          createValidationDetails(errors),
-        ),
-    }),
-  );
+          createValidationDetails(errors)
+        )
+    })
+  )
 
-  const openApiConfig = new DocumentBuilder()
-    .setTitle('Twodo API')
-    .setDescription('HTTP API for Twodo clients')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  const openApiDocument = SwaggerModule.createDocument(app, openApiConfig);
-  SwaggerModule.setup('docs', app, openApiDocument);
+  const document = SwaggerModule.createDocument(
+    app,
+    new DocumentBuilder()
+      .setTitle('Twodo API')
+      .setDescription('HTTP API for Twodo clients')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build()
+  )
+  SwaggerModule.setup('docs', app, document)
 
-  const config = app.get(ConfigService);
-  await app.listen(config.getOrThrow<number>('PORT'));
+  const config = app.get(ConfigService)
+  await app.listen(config.getOrThrow<number>('PORT'))
 }
 
-void main();
+void main()

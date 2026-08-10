@@ -69,7 +69,7 @@ Authorization: Bearer <token>
 The Nest app validates the token by calling:
 
 ```text
-GET {AUTH_API_URL}/user
+GET {API_URL}/user
 ```
 
 Expected auth server response:
@@ -145,8 +145,8 @@ The app uses TypeORM schema synchronization against a fresh SQLite database.
 
 ```text
 PORT=8080
-AUTH_API_URL=http://localhost:8000
-AUTH_TIMEOUT_MS=5000
+API_URL=http://localhost:8000
+TIMEOUT_MS=5000
 DATABASE_PATH=db.sqlite
 NODE_ENV=development
 ```
@@ -160,7 +160,7 @@ GET /server/health
 GET /server/version
 ```
 
-Authenticated routes require `Authorization: Bearer <token>` and validate that token by calling `GET {AUTH_API_URL}/user`.
+Authenticated routes require `Authorization: Bearer <token>` and validate that token by calling `GET {API_URL}/user`.
 
 ```text
 GET /users/me

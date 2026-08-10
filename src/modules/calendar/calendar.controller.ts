@@ -1,4 +1,25 @@
 import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiConflictResponse,
+  ApiForbiddenResponse,
+  ApiNotFoundResponse,
+  ApiOperation,
+  ApiParam,
+  ApiTags,
+  ApiUnauthorizedResponse
+} from '@nestjs/swagger'
+import {
+  CreateCalendarEntryDto,
+  ListCalendarEntriesDto,
+  UpdateCalendarEntryDto
+} from '@/modules/calendar/dto/request.dto'
+import {
+  CalendarEntryDto,
+  PeriodPredictionDto,
+  PeriodTrackerSummaryDto
+} from '@/modules/calendar/dto/response.dto'
+import {
   Body,
   Controller,
   Delete,
@@ -8,35 +29,14 @@ import {
   Post,
   Query,
   Req,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBadRequestResponse,
-  ApiBearerAuth,
-  ApiConflictResponse,
-  ApiForbiddenResponse,
-  ApiNotFoundResponse,
-  ApiOperation,
-  ApiParam,
-  ApiUnauthorizedResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { AuthGuard } from '../../core/auth/auth.guard';
-import type { AuthenticatedRequest } from '../../core/auth/auth.types';
-import { ProfileCompletionGuard } from '../../core/auth/profile-completion.guard';
-import { ApiErrorEnvelopeDto } from '../../core/openapi/api-response.dto';
-import { ApiSuccessResponse } from '../../core/openapi/api-success-response.decorator';
-import { CalendarService } from './calendar.service';
-import {
-  CreateCalendarEntryDto,
-  ListCalendarEntriesDto,
-  UpdateCalendarEntryDto,
-} from './dtos/request.dto';
-import {
-  CalendarEntryDto,
-  PeriodPredictionDto,
-  PeriodTrackerSummaryDto,
-} from './dtos/response.dto';
+  UseGuards
+} from '@nestjs/common'
+import { ProfileCompletionGuard } from '@/modules/auth/guard/profile-completion.guard'
+import { ApiSuccessResponse } from '@/core/openapi/api-success-response.decorator'
+import { CalendarService } from '@/modules/calendar/service/calendar.service'
+import type { AuthenticatedRequest } from '@/modules/auth/auth.types'
+import { AuthGuard } from '@/modules/auth/guard/auth.guard'
+import { ApiErrorEnvelopeDto } from '@/core/openapi/api-response.dto'
 
 @Controller('calendar')
 @UseGuards(AuthGuard, ProfileCompletionGuard)
@@ -53,9 +53,9 @@ export class CalendarController {
   @ApiSuccessResponse({ status: 201, type: CalendarEntryDto })
   createEntry(
     @Req() request: AuthenticatedRequest,
-    @Body() body: CreateCalendarEntryDto,
+    @Body() body: CreateCalendarEntryDto
   ): Promise<CalendarEntryDto> {
-    return this.calendarService.createEntry(request.auth.user, body);
+    return this.calendarService.createEntry(request.auth.user, body)
   }
 
   @Get()
@@ -64,28 +64,24 @@ export class CalendarController {
   @ApiSuccessResponse({ isArray: true, type: CalendarEntryDto })
   listEntries(
     @Req() request: AuthenticatedRequest,
-    @Query() query: ListCalendarEntriesDto,
+    @Query() query: ListCalendarEntriesDto
   ): Promise<CalendarEntryDto[]> {
-    return this.calendarService.listEntries(request.auth.user, query);
+    return this.calendarService.listEntries(request.auth.user, query)
   }
 
   @Get('period-tracker/summary')
   @ApiOperation({ summary: 'Get period tracker summary for the current couple' })
   @ApiSuccessResponse({ type: PeriodTrackerSummaryDto })
-  getPeriodTrackerSummary(
-    @Req() request: AuthenticatedRequest,
-  ): Promise<PeriodTrackerSummaryDto> {
-    return this.calendarService.getPeriodTrackerSummary(request.auth.user);
+  getPeriodTrackerSummary(@Req() request: AuthenticatedRequest): Promise<PeriodTrackerSummaryDto> {
+    return this.calendarService.getPeriodTrackerSummary(request.auth.user)
   }
 
   @Get('period-tracker/prediction')
   @ApiOperation({ summary: 'Get period and ovulation prediction' })
   @ApiConflictResponse({ type: ApiErrorEnvelopeDto })
   @ApiSuccessResponse({ type: PeriodPredictionDto })
-  getPeriodPrediction(
-    @Req() request: AuthenticatedRequest,
-  ): Promise<PeriodPredictionDto> {
-    return this.calendarService.getPeriodPrediction(request.auth.user);
+  getPeriodPrediction(@Req() request: AuthenticatedRequest): Promise<PeriodPredictionDto> {
+    return this.calendarService.getPeriodPrediction(request.auth.user)
   }
 
   @Get(':id')
@@ -95,9 +91,9 @@ export class CalendarController {
   @ApiSuccessResponse({ type: CalendarEntryDto })
   getEntry(
     @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
+    @Param('id') id: string
   ): Promise<CalendarEntryDto> {
-    return this.calendarService.getEntry(request.auth.user, id);
+    return this.calendarService.getEntry(request.auth.user, id)
   }
 
   @Patch(':id')
@@ -109,9 +105,9 @@ export class CalendarController {
   updateEntry(
     @Req() request: AuthenticatedRequest,
     @Param('id') id: string,
-    @Body() body: UpdateCalendarEntryDto,
+    @Body() body: UpdateCalendarEntryDto
   ): Promise<CalendarEntryDto> {
-    return this.calendarService.updateEntry(request.auth.user, id, body);
+    return this.calendarService.updateEntry(request.auth.user, id, body)
   }
 
   @Delete(':id')
@@ -119,10 +115,7 @@ export class CalendarController {
   @ApiParam({ name: 'id', format: 'uuid' })
   @ApiNotFoundResponse({ type: ApiErrorEnvelopeDto })
   @ApiSuccessResponse()
-  deleteEntry(
-    @Req() request: AuthenticatedRequest,
-    @Param('id') id: string,
-  ): Promise<null> {
-    return this.calendarService.deleteEntry(request.auth.user, id);
+  deleteEntry(@Req() request: AuthenticatedRequest, @Param('id') id: string): Promise<null> {
+    return this.calendarService.deleteEntry(request.auth.user, id)
   }
 }

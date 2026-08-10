@@ -1,42 +1,41 @@
-import { applyDecorators, Type } from '@nestjs/common';
-import { ApiExtraModels, ApiResponse, getSchemaPath } from '@nestjs/swagger';
-import { ApiSuccessEnvelopeDto } from './api-response.dto';
+import { ApiExtraModels, ApiResponse, getSchemaPath } from '@nestjs/swagger'
+import { ApiSuccessEnvelopeDto } from '@/core/openapi/api-response.dto'
+import { applyDecorators } from '@nestjs/common'
+import type { Type } from '@nestjs/common'
 
 type ApiSuccessResponseOptions = {
-  description?: string;
-  isArray?: boolean;
-  nullable?: boolean;
-  status?: number;
-  type?: Type<unknown>;
-};
+  description?: string
+  isArray?: boolean
+  nullable?: boolean
+  status?: number
+  type?: Type<unknown>
+}
 
 function createDataSchema(options: ApiSuccessResponseOptions) {
   if (!options.type) {
-    return { nullable: true, example: null };
+    return { nullable: true, example: null }
   }
 
   if (options.isArray) {
     return {
       type: 'array',
       items: { $ref: getSchemaPath(options.type) },
-      ...(options.nullable ? { nullable: true } : {}),
-    };
+      ...(options.nullable ? { nullable: true } : {})
+    }
   }
 
   if (options.nullable) {
     return {
       allOf: [{ $ref: getSchemaPath(options.type) }],
-      nullable: true,
-    };
+      nullable: true
+    }
   }
 
-  return { $ref: getSchemaPath(options.type) };
+  return { $ref: getSchemaPath(options.type) }
 }
 
 export function ApiSuccessResponse(options: ApiSuccessResponseOptions = {}) {
-  const models = options.type
-    ? [ApiSuccessEnvelopeDto, options.type]
-    : [ApiSuccessEnvelopeDto];
+  const models = options.type ? [ApiSuccessEnvelopeDto, options.type] : [ApiSuccessEnvelopeDto]
 
   return applyDecorators(
     ApiExtraModels(...models),
@@ -48,11 +47,11 @@ export function ApiSuccessResponse(options: ApiSuccessResponseOptions = {}) {
           { $ref: getSchemaPath(ApiSuccessEnvelopeDto) },
           {
             properties: {
-              data: createDataSchema(options),
-            },
-          },
-        ],
-      },
-    }),
-  );
+              data: createDataSchema(options)
+            }
+          }
+        ]
+      }
+    })
+  )
 }

@@ -1,14 +1,14 @@
-import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { AuthModule } from '../../core/auth/auth.module';
-import { CoupleMember } from '../couples/entities/couple-member.entity';
-import { CalendarController } from './calendar.controller';
-import { CalendarService } from './calendar.service';
-import { CalendarEntry } from './entities/calendar-entry.entity';
-import { CalendarPeriodDetail } from './entities/calendar-period-detail.entity';
-import { CalendarSexualActivityDetail } from './entities/calendar-sexual-activity-detail.entity';
-import { MenstrualCyclePredictionService } from './menstrual-cycle-prediction.service';
-import { PeriodTrackerService } from './period-tracker.service';
+import { MenstrualCyclePredictionService } from '@/modules/calendar/service/menstrual-cycle-prediction.service'
+import { CalendarSexualActivityDetail } from '@/modules/calendar/entity/calendar-sexual-activity-detail.entity'
+import { CalendarPeriodDetail } from '@/modules/calendar/entity/calendar-period-detail.entity'
+import { PeriodTrackerService } from '@/modules/calendar/service/period-tracker.service'
+import { CoupleMember } from '@/modules/couple/entity/couple-member.entity'
+import { CalendarService } from '@/modules/calendar/service/calendar.service'
+import { CalendarController } from '@/modules/calendar/calendar.controller'
+import { CalendarEntry } from '@/modules/calendar/entity/calendar-entry.entity'
+import { AuthModule } from '@/modules/auth/auth.module'
+import { TypeOrmModule } from '@nestjs/typeorm'
+import { Module } from '@nestjs/common'
 
 @Module({
   imports: [
@@ -17,10 +17,10 @@ import { PeriodTrackerService } from './period-tracker.service';
       CalendarEntry,
       CalendarPeriodDetail,
       CalendarSexualActivityDetail,
-      CoupleMember,
-    ]),
+      CoupleMember
+    ])
   ],
   controllers: [CalendarController],
-  providers: [CalendarService, MenstrualCyclePredictionService, PeriodTrackerService],
+  providers: [CalendarService, MenstrualCyclePredictionService, PeriodTrackerService]
 })
 export class CalendarModule {}

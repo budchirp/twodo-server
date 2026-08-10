@@ -1,11 +1,11 @@
-import { CalendarEntry } from '../../modules/calendar/entities/calendar-entry.entity';
-import { CalendarPeriodDetail } from '../../modules/calendar/entities/calendar-period-detail.entity';
-import { CalendarSexualActivityDetail } from '../../modules/calendar/entities/calendar-sexual-activity-detail.entity';
-import { Couple } from '../../modules/couples/entities/couple.entity';
-import { CoupleMember } from '../../modules/couples/entities/couple-member.entity';
-import { Invite } from '../../modules/invites/entities/invite.entity';
-import { Note } from '../../modules/notes/entities/note.entity';
-import { User } from '../../modules/users/entities/user.entity';
+import { CalendarSexualActivityDetail } from '@/modules/calendar/entity/calendar-sexual-activity-detail.entity'
+import { CalendarPeriodDetail } from '@/modules/calendar/entity/calendar-period-detail.entity'
+import { CoupleMember } from '@/modules/couple/entity/couple-member.entity'
+import { CalendarEntry } from '@/modules/calendar/entity/calendar-entry.entity'
+import { Invite } from '@/modules/invite/entity/invite.entity'
+import { Couple } from '@/modules/couple/entity/couple.entity'
+import { User } from '@/modules/user/entity/user.entity'
+import { Note } from '@/modules/note/entity/note.entity'
 
 export const entities = [
   User,
@@ -15,5 +15,5 @@ export const entities = [
   Note,
   CalendarEntry,
   CalendarPeriodDetail,
-  CalendarSexualActivityDetail,
-];
+  CalendarSexualActivityDetail
+]

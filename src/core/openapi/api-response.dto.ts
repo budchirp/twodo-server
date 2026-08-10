@@ -1,29 +1,29 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger'
 
 export class ApiSuccessEnvelopeDto {
   @ApiProperty({ example: false })
-  error: boolean;
+  error: boolean
 
   @ApiProperty({ example: 'success' })
-  code: string;
+  code: string
 
   @ApiProperty({ example: 'Success' })
-  message: string;
+  message: string
 
   @ApiProperty({ nullable: true })
-  data: unknown;
+  data: unknown
 }
 
 export class ApiErrorEnvelopeDto {
   @ApiProperty({ example: true })
-  error: boolean;
+  error: boolean
 
   @ApiProperty({ example: 'error-user-not-found' })
-  code: string;
+  code: string
 
   @ApiProperty({ example: 'User not found' })
-  message: string;
+  message: string
 
   @ApiProperty({ nullable: true })
-  data: unknown;
+  data: unknown
 }
