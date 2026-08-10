@@ -1,7 +1,6 @@
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
-  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -14,11 +13,6 @@ import {
   ListCalendarEntriesDto,
   UpdateCalendarEntryDto
 } from '@/modules/calendar/dto/request.dto'
-import {
-  CalendarEntryDto,
-  PeriodPredictionDto,
-  PeriodTrackerSummaryDto
-} from '@/modules/calendar/dto/response.dto'
 import {
   Body,
   Controller,
@@ -35,6 +29,7 @@ import { ProfileCompletionGuard } from '@/modules/auth/guard/profile-completion.
 import { ApiSuccessResponse } from '@/core/openapi/api-success-response.decorator'
 import { CalendarService } from '@/modules/calendar/service/calendar.service'
 import type { AuthenticatedRequest } from '@/modules/auth/auth.types'
+import { CalendarEntryDto } from '@/modules/calendar/dto/response.dto'
 import { AuthGuard } from '@/modules/auth/guard/auth.guard'
 import { ApiErrorEnvelopeDto } from '@/core/openapi/api-response.dto'
 
@@ -67,21 +62,6 @@ export class CalendarController {
     @Query() query: ListCalendarEntriesDto
   ): Promise<CalendarEntryDto[]> {
     return this.calendarService.listEntries(request.auth.user, query)
-  }
-
-  @Get('period-tracker/summary')
-  @ApiOperation({ summary: 'Get period tracker summary for the current couple' })
-  @ApiSuccessResponse({ type: PeriodTrackerSummaryDto })
-  getPeriodTrackerSummary(@Req() request: AuthenticatedRequest): Promise<PeriodTrackerSummaryDto> {
-    return this.calendarService.getPeriodTrackerSummary(request.auth.user)
-  }
-
-  @Get('period-tracker/prediction')
-  @ApiOperation({ summary: 'Get period and ovulation prediction' })
-  @ApiConflictResponse({ type: ApiErrorEnvelopeDto })
-  @ApiSuccessResponse({ type: PeriodPredictionDto })
-  getPeriodPrediction(@Req() request: AuthenticatedRequest): Promise<PeriodPredictionDto> {
-    return this.calendarService.getPeriodPrediction(request.auth.user)
   }
 
   @Get(':id')

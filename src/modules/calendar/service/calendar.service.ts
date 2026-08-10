@@ -142,62 +142,76 @@ export class CalendarService {
       const ranges = await this.periodRanges(user)
       if (ranges.length > 0) {
         const prediction = this.predictions.predict(ranges)
-        if (prediction.nextPeriodWindow) {
-          const periodWindowDates = datesBetweenInclusive(
-            prediction.nextPeriodWindow.startDate,
-            prediction.nextPeriodWindow.endDate
-          )
-          for (const date of periodWindowDates) {
-            if (date >= startDate && date <= endDate) {
-              const exists = resultEntries.some(
-                (entry) =>
-                  entry.date === date &&
-                  (entry.type === CalendarActivityType.Period ||
-                    entry.type === CalendarActivityType.PeriodPrediction)
-              )
-              if (!exists) {
-                resultEntries.push({
-                  id: `period-prediction-${date}`,
-                  date,
-                  type: CalendarActivityType.PeriodPrediction,
-                  notes: 'Estimated Period',
-                  createdBy: null,
-                  period: null,
-                  sexualActivity: null,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                })
+        if (
+          prediction.expectedPeriodStartDate &&
+          prediction.cycleLengthDays &&
+          prediction.periodDurationDays
+        ) {
+          let projectedStart = prediction.expectedPeriodStartDate
+          const cycleLength = prediction.cycleLengthDays
+          const periodDuration = prediction.periodDurationDays
+
+          for (let cycle = 0; cycle < 12; cycle++) {
+            if (projectedStart > endDate) {
+              break
+            }
+
+            const projectedEnd = addDays(projectedStart, periodDuration - 1)
+            const peakOvulationDate = addDays(projectedStart, -14)
+            const ovulationStartDate = addDays(peakOvulationDate, -5)
+            const ovulationEndDate = addDays(peakOvulationDate, 1)
+
+            // Period prediction entries
+            const periodDates = datesBetweenInclusive(projectedStart, projectedEnd)
+            for (const date of periodDates) {
+              if (date >= startDate && date <= endDate) {
+                const exists = resultEntries.some(
+                  (e) =>
+                    e.date === date &&
+                    (e.type === CalendarActivityType.Period ||
+                      e.type === CalendarActivityType.PeriodPrediction)
+                )
+                if (!exists) {
+                  resultEntries.push({
+                    id: `period-prediction-${date}`,
+                    date,
+                    type: CalendarActivityType.PeriodPrediction,
+                    notes: 'Estimated Period',
+                    createdBy: null,
+                    period: null,
+                    sexualActivity: null,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  })
+                }
               }
             }
-          }
-        }
 
-        if (prediction.ovulationWindow && prediction.expectedPeriodStartDate) {
-          const ovulationWindowDates = datesBetweenInclusive(
-            prediction.ovulationWindow.startDate,
-            prediction.ovulationWindow.endDate
-          )
-          const peakOvulationDate = addDays(prediction.expectedPeriodStartDate, -14)
-
-          for (const date of ovulationWindowDates) {
-            if (date >= startDate && date <= endDate) {
-              const exists = resultEntries.some(
-                (entry) => entry.date === date && entry.type === CalendarActivityType.Ovulation
-              )
-              if (!exists) {
-                resultEntries.push({
-                  id: `ovulation-${date}`,
-                  date,
-                  type: CalendarActivityType.Ovulation,
-                  notes: date === peakOvulationDate ? 'Estimated Ovulation Day' : 'Fertile Window',
-                  createdBy: null,
-                  period: null,
-                  sexualActivity: null,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                })
+            // Ovulation entries
+            const ovulationDates = datesBetweenInclusive(ovulationStartDate, ovulationEndDate)
+            for (const date of ovulationDates) {
+              if (date >= startDate && date <= endDate) {
+                const exists = resultEntries.some(
+                  (e) => e.date === date && e.type === CalendarActivityType.Ovulation
+                )
+                if (!exists) {
+                  resultEntries.push({
+                    id: `ovulation-${date}`,
+                    date,
+                    type: CalendarActivityType.Ovulation,
+                    notes:
+                      date === peakOvulationDate ? 'Estimated Ovulation Day' : 'Fertile Window',
+                    createdBy: null,
+                    period: null,
+                    sexualActivity: null,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                  })
+                }
               }
             }
+
+            projectedStart = addDays(projectedStart, cycleLength)
           }
         }
       }
