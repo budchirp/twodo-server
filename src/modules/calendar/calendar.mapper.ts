@@ -1,9 +1,7 @@
 import type {
   CalendarEntryDto,
-  CalendarPeriodDetailsResponseDto,
-  CalendarSexualActivityDetailsResponseDto
+  CalendarPeriodDetailsResponseDto
 } from '@/modules/calendar/dto/response.dto'
-import type { CalendarSexualActivityDetail } from '@/modules/calendar/entity/calendar-sexual-activity-detail.entity'
 import type { CalendarPeriodDetail } from '@/modules/calendar/entity/calendar-period-detail.entity'
 import type { CalendarEntry } from '@/modules/calendar/entity/calendar-entry.entity'
 import { UserMapper } from '@/modules/user/user.mapper'
@@ -19,9 +17,6 @@ export class CalendarMapper {
       period: entry.periodDetail
         ? CalendarMapper.toPeriodDetailsResponse(entry.periodDetail)
         : null,
-      sexualActivity: entry.sexualActivityDetail
-        ? CalendarMapper.toSexualActivityDetailsResponse(entry.sexualActivityDetail)
-        : null,
       createdAt: entry.createdAt ? entry.createdAt.toISOString() : new Date().toISOString(),
       updatedAt: entry.updatedAt ? entry.updatedAt.toISOString() : new Date().toISOString()
     }
@@ -34,16 +29,6 @@ export class CalendarMapper {
       event: detail.event,
       flowLevel: detail.flowLevel,
       symptoms: detail.symptoms ?? []
-    }
-  }
-
-  private static toSexualActivityDetailsResponse(
-    detail: CalendarSexualActivityDetail
-  ): CalendarSexualActivityDetailsResponseDto {
-    return {
-      sexOccurred: detail.sexOccurred,
-      protectionMethod: detail.protectionMethod,
-      ejaculationLocation: detail.ejaculationLocation
     }
   }
 }

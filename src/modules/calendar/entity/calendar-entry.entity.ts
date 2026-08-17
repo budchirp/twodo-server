@@ -9,9 +9,8 @@ import {
   Entity,
   Index
 } from 'typeorm'
-import { CalendarSexualActivityDetail } from '@/modules/calendar/entity/calendar-sexual-activity-detail.entity'
 import { CalendarPeriodDetail } from '@/modules/calendar/entity/calendar-period-detail.entity'
-import { CalendarActivityType } from '@/modules/calendar/entity/calendar.enums'
+import type { CalendarActivityType } from '@/modules/calendar/entity/calendar.enums'
 import { Couple } from '@/modules/couple/entity/couple.entity'
 import { User } from '@/modules/user/entity/user.entity'
 
@@ -62,12 +61,6 @@ export class CalendarEntry {
     (detail) => detail.entry
   )
   periodDetail: CalendarPeriodDetail | null
-
-  @OneToOne(
-    () => CalendarSexualActivityDetail,
-    (detail) => detail.entry
-  )
-  sexualActivityDetail: CalendarSexualActivityDetail | null
 
   @CreateDateColumn({ name: 'created_at', type: 'datetime' })
   createdAt: Date

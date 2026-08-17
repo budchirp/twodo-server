@@ -1,14 +1,11 @@
 import {
   CalendarActivityType,
-  CalendarEjaculationLocation,
   CalendarFlowLevel,
   CalendarPeriodEvent,
-  CalendarPeriodSymptom,
-  CalendarProtectionMethod
+  CalendarPeriodSymptom
 } from '@/modules/calendar/entity/calendar.enums'
 import {
   IsArray,
-  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -70,37 +67,6 @@ export class UpdateCalendarPeriodDetailsDto {
   symptoms?: CalendarPeriodSymptom[]
 }
 
-export class CalendarSexualActivityDetailsDto {
-  @ApiProperty()
-  @IsBoolean()
-  sexOccurred: boolean
-
-  @ApiProperty({ enum: CalendarProtectionMethod })
-  @IsEnum(CalendarProtectionMethod)
-  protectionMethod: CalendarProtectionMethod
-
-  @ApiProperty({ enum: CalendarEjaculationLocation })
-  @IsEnum(CalendarEjaculationLocation)
-  ejaculationLocation: CalendarEjaculationLocation
-}
-
-export class UpdateCalendarSexualActivityDetailsDto {
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  sexOccurred?: boolean
-
-  @ApiPropertyOptional({ enum: CalendarProtectionMethod })
-  @IsOptional()
-  @IsEnum(CalendarProtectionMethod)
-  protectionMethod?: CalendarProtectionMethod
-
-  @ApiPropertyOptional({ enum: CalendarEjaculationLocation })
-  @IsOptional()
-  @IsEnum(CalendarEjaculationLocation)
-  ejaculationLocation?: CalendarEjaculationLocation
-}
-
 export class CreateCalendarEntryDto {
   @ApiProperty({ example: dateExample, format: 'date' })
   @IsDateString()
@@ -122,12 +88,6 @@ export class CreateCalendarEntryDto {
   @ValidateNested()
   @Type(() => CalendarPeriodDetailsDto)
   period?: CalendarPeriodDetailsDto
-
-  @ApiPropertyOptional({ type: () => CalendarSexualActivityDetailsDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => CalendarSexualActivityDetailsDto)
-  sexualActivity?: CalendarSexualActivityDetailsDto
 }
 
 export class UpdateCalendarEntryDto {
@@ -153,12 +113,6 @@ export class UpdateCalendarEntryDto {
   @ValidateNested()
   @Type(() => UpdateCalendarPeriodDetailsDto)
   period?: UpdateCalendarPeriodDetailsDto
-
-  @ApiPropertyOptional({ type: () => UpdateCalendarSexualActivityDetailsDto })
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => UpdateCalendarSexualActivityDetailsDto)
-  sexualActivity?: UpdateCalendarSexualActivityDetailsDto
 }
 
 export class ListCalendarEntriesDto {

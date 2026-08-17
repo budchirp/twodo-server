@@ -61,16 +61,23 @@ export class CalendarController {
     @Req() request: AuthenticatedRequest,
     @Query() query: ListCalendarEntriesDto
   ): Promise<CalendarEntryDto[]> {
-    return this.calendarService.listEntries(request.auth.user, query)
+    return this.calendarService.listEntries(
+      request.auth.user,
+      query,
+      request.headers['accept-language']
+    )
   }
 
   @Get('predictions/summary')
-  @ApiOperation({ summary: 'Get fertility, conception risk, and pregnancy prediction summary' })
+  @ApiOperation({ summary: 'Get menstrual cycle and period prediction summary' })
   @ApiSuccessResponse({ type: CalendarPredictionSummaryDto })
   getPredictionSummary(
     @Req() request: AuthenticatedRequest
   ): Promise<CalendarPredictionSummaryDto> {
-    return this.calendarService.getPredictionSummary(request.auth.user)
+    return this.calendarService.getPredictionSummary(
+      request.auth.user,
+      request.headers['accept-language']
+    )
   }
 
   @Get(':id')

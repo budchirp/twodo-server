@@ -6,7 +6,7 @@ import type { CoupleDto } from '@/modules/couple/dto/response.dto'
 import { CoupleMapper } from '@/modules/couple/couple.mapper'
 import { InjectRepository } from '@nestjs/typeorm'
 import { HttpStatus, Injectable } from '@nestjs/common'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource, type Repository } from 'typeorm'
 
 @Injectable()
 export class CoupleService {

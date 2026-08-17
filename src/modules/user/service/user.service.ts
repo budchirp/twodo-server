@@ -1,14 +1,14 @@
 import type { ExternalAuthUser } from '@/modules/auth/auth.types'
 import { CoupleMember } from '@/modules/couple/entity/couple-member.entity'
 import { isUserGender } from '@/modules/user/util/user-profile.util'
-import { User, UserGender } from '@/modules/user/entity/user.entity'
+import { User } from '@/modules/user/entity/user.entity'
 import type { UpdateUserProfileDto } from '@/modules/user/dto/request.dto'
 import { ApiException } from '@/core/exception/api.exception'
 import type { UserDto } from '@/modules/user/dto/response.dto'
 import { UserMapper } from '@/modules/user/user.mapper'
 import { InjectRepository } from '@nestjs/typeorm'
 import { HttpStatus, Injectable } from '@nestjs/common'
-import { Repository } from 'typeorm'
+import type { Repository } from 'typeorm'
 
 @Injectable()
 export class UserService {

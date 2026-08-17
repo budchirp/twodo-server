@@ -7,7 +7,7 @@ export class EnvValidator {
       PORT: EnvValidator.readInteger(config, 'PORT', 8080),
       API_URL: EnvValidator.readString(config, 'API_URL', 'http://localhost:8000'),
       TIMEOUT_MS: EnvValidator.readInteger(config, 'TIMEOUT_MS', 5000),
-      DATABASE_PATH: EnvValidator.readString(config, 'DATABASE_PATH', 'db.sqlite'),
+      DB_PATH: EnvValidator.readString(config, 'DB_PATH', 'db.sqlite'),
       NODE_ENV: EnvValidator.readString(config, 'NODE_ENV', 'development')
     }
   }

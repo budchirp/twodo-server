@@ -2,8 +2,7 @@ export enum CalendarActivityType {
   Note = 'note',
   Ovulation = 'ovulation',
   Period = 'period',
-  PeriodPrediction = 'period_prediction',
-  SexualActivity = 'sexual_activity'
+  PeriodPrediction = 'period_prediction'
 }
 
 export enum CalendarPeriodEvent {
@@ -31,51 +30,9 @@ export enum CalendarPeriodSymptom {
   Nausea = 'nausea'
 }
 
-export enum CalendarProtectionMethod {
-  Condom = 'condom',
-  Diaphragm = 'diaphragm',
-  EmergencyContraception = 'emergency_contraception',
-  FertilityAwareness = 'fertility_awareness',
-  Hormonal = 'hormonal',
-  Implant = 'implant',
-  Injection = 'injection',
-  Iud = 'iud',
-  None = 'none',
-  Patch = 'patch',
-  Pill = 'pill',
-  Ring = 'ring',
-  Withdrawal = 'withdrawal'
-}
-
-export enum CalendarEjaculationLocation {
-  Anal = 'anal',
-  Condom = 'condom',
-  InsideVagina = 'inside_vagina',
-  None = 'none',
-  Oral = 'oral',
-  OutsideVagina = 'outside_vagina',
-  OtherBody = 'other_body'
-}
-
 export enum PeriodPredictionReliability {
   High = 'high',
   InsufficientData = 'insufficient_data',
   Low = 'low',
   Medium = 'medium'
-}
-
-export enum ConceptionRiskLevel {
-  High = 'high',
-  Low = 'low',
-  Moderate = 'moderate',
-  None = 'none',
-  Unknown = 'unknown'
-}
-
-export enum PregnancyAssessmentStatus {
-  NotDue = 'not_due',
-  PeriodDue = 'period_due',
-  PeriodLate = 'period_late',
-  PossiblePregnancy = 'possible_pregnancy',
-  Unknown = 'unknown'
 }

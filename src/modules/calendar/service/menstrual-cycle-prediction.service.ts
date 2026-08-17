@@ -16,8 +16,7 @@ const MAX_USABLE_CYCLE_LENGTH_DAYS = 60
 const MIN_USABLE_PERIOD_DURATION_DAYS = 1
 const MAX_USABLE_PERIOD_DURATION_DAYS = 14
 const RECENCY_DECAY_FACTOR = 0.75
-const DISCLAIMER =
-  'Predictions are estimates and are not medical diagnosis or contraception advice.'
+const DISCLAIMER = 'calendar.prediction_disclaimer'
 
 type CycleModelEstimate = {
   basis: string
@@ -127,7 +126,7 @@ export class MenstrualCyclePredictionService {
       cycleLengthVariabilityDays: null,
       predictionUncertaintyDays: null,
       recentIrregularity: false,
-      basis: 'no_period_history',
+      basis: 'calendar.basis.no_period_history',
       disclaimer: DISCLAIMER
     }
   }
@@ -135,7 +134,7 @@ export class MenstrualCyclePredictionService {
   private estimateCycleModel(cycleLengths: number[]): CycleModelEstimate {
     if (cycleLengths.length === 0) {
       return {
-        basis: 'baseline_from_latest_period',
+        basis: 'calendar.basis.baseline_from_latest_period',
         cycleLengthDays: DEFAULT_CYCLE_LENGTH_DAYS,
         modelDisagreementDays: 0,
         recentIrregularity: false,
@@ -185,8 +184,8 @@ export class MenstrualCyclePredictionService {
 
     return {
       basis: regression
-        ? 'tensorflow_weighted_regression_model'
-        : 'tensorflow_weighted_average_model',
+        ? 'calendar.basis.tensorflow_weighted_regression_model'
+        : 'calendar.basis.tensorflow_weighted_average_model',
       cycleLengthDays,
       modelDisagreementDays,
       recentIrregularity: variabilityDays > 7 || Math.abs(recentCycleLength - cycleLengthDays) > 7,

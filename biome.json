@@ -22,6 +22,7 @@
         "useExhaustiveDependencies": "off"
       },
       "style": {
+        "useImportType": "off",
         "useNodejsImportProtocol": "off",
         "noInferrableTypes": "off",
         "noParameterAssign": "off",

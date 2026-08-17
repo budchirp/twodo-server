@@ -1,7 +1,7 @@
 import {
-  CalendarFlowLevel,
+  type CalendarFlowLevel,
   CalendarPeriodEvent,
-  CalendarPeriodSymptom
+  type CalendarPeriodSymptom
 } from '@/modules/calendar/entity/calendar.enums'
 import type { CycleHistoryDto, PeriodRangeDto } from '@/modules/calendar/dto/response.dto'
 import type { CalendarEntry } from '@/modules/calendar/entity/calendar-entry.entity'

@@ -1,4 +1,3 @@
-import { CalendarSexualActivityDetail } from '@/modules/calendar/entity/calendar-sexual-activity-detail.entity'
 import { CalendarPeriodDetail } from '@/modules/calendar/entity/calendar-period-detail.entity'
 import { CoupleMember } from '@/modules/couple/entity/couple-member.entity'
 import { CalendarEntry } from '@/modules/calendar/entity/calendar-entry.entity'
@@ -14,6 +13,5 @@ export const entities = [
   Invite,
   Note,
   CalendarEntry,
-  CalendarPeriodDetail,
-  CalendarSexualActivityDetail
+  CalendarPeriodDetail
 ]

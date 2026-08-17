@@ -1,13 +1,9 @@
 import {
   CalendarActivityType,
-  CalendarEjaculationLocation,
   CalendarFlowLevel,
   CalendarPeriodEvent,
   CalendarPeriodSymptom,
-  CalendarProtectionMethod,
-  ConceptionRiskLevel,
-  PeriodPredictionReliability,
-  PregnancyAssessmentStatus
+  PeriodPredictionReliability
 } from '@/modules/calendar/entity/calendar.enums'
 import { UserSummaryDto } from '@/modules/user/dto/response.dto'
 import { ApiProperty } from '@nestjs/swagger'
@@ -21,17 +17,6 @@ export class CalendarPeriodDetailsResponseDto {
 
   @ApiProperty({ enum: CalendarPeriodSymptom, isArray: true })
   symptoms: CalendarPeriodSymptom[]
-}
-
-export class CalendarSexualActivityDetailsResponseDto {
-  @ApiProperty()
-  sexOccurred: boolean
-
-  @ApiProperty({ enum: CalendarProtectionMethod })
-  protectionMethod: CalendarProtectionMethod
-
-  @ApiProperty({ enum: CalendarEjaculationLocation })
-  ejaculationLocation: CalendarEjaculationLocation
 }
 
 export class CalendarEntryDto {
@@ -52,12 +37,6 @@ export class CalendarEntryDto {
 
   @ApiProperty({ nullable: true, type: () => CalendarPeriodDetailsResponseDto })
   period: CalendarPeriodDetailsResponseDto | null
-
-  @ApiProperty({
-    nullable: true,
-    type: () => CalendarSexualActivityDetailsResponseDto
-  })
-  sexualActivity: CalendarSexualActivityDetailsResponseDto | null
 
   @ApiProperty({ format: 'date-time' })
   createdAt: string
@@ -149,81 +128,15 @@ export class PeriodPredictionDto {
   disclaimer: string
 }
 
-export class FertilityWindowEstimateDto {
-  @ApiProperty({ format: 'date', nullable: true, type: String })
-  ovulationDate: string | null
-
-  @ApiProperty({ format: 'date', nullable: true, type: String })
-  fertileWindowStartDate: string | null
-
-  @ApiProperty({ format: 'date', nullable: true, type: String })
-  fertileWindowEndDate: string | null
-
-  @ApiProperty()
-  uncertaintyDays: number
-
-  @ApiProperty({ enum: PeriodPredictionReliability })
-  reliability: PeriodPredictionReliability
-
-  @ApiProperty()
-  hasEnoughData: boolean
-
-  @ApiProperty()
-  explanation: string
-}
-
-export class ConceptionRiskAssessmentDto {
-  @ApiProperty({ enum: ConceptionRiskLevel })
-  level: ConceptionRiskLevel
-
-  @ApiProperty()
-  confidence: string
-
-  @ApiProperty({ isArray: true })
-  relevantEvents: string[]
-
-  @ApiProperty()
-  fertileWindowOverlap: boolean
-
-  @ApiProperty()
-  explanation: string
-}
-
-export class PregnancyAssessmentDto {
-  @ApiProperty({ enum: PregnancyAssessmentStatus })
-  status: PregnancyAssessmentStatus
-
-  @ApiProperty()
-  confidence: string
-
-  @ApiProperty({ format: 'date', nullable: true, type: String })
-  expectedPeriodDate: string | null
-
-  @ApiProperty()
-  daysLate: number
-
-  @ApiProperty({ type: () => ConceptionRiskAssessmentDto })
-  conceptionRisk: ConceptionRiskAssessmentDto
-
-  @ApiProperty()
-  needsPregnancyTest: boolean
-
-  @ApiProperty()
-  explanation: string
-}
-
 export class CalendarPredictionSummaryDto {
   @ApiProperty({ nullable: true, type: () => PeriodPredictionDto })
   cyclePrediction: PeriodPredictionDto
 
-  @ApiProperty({ type: () => FertilityWindowEstimateDto })
-  fertilityWindow: FertilityWindowEstimateDto
+  @ApiProperty({ isArray: true, type: () => PeriodRangeDto })
+  ranges: PeriodRangeDto[]
 
-  @ApiProperty({ type: () => ConceptionRiskAssessmentDto })
-  conceptionRisk: ConceptionRiskAssessmentDto
-
-  @ApiProperty({ type: () => PregnancyAssessmentDto })
-  pregnancyAssessment: PregnancyAssessmentDto
+  @ApiProperty({ isArray: true, type: () => CycleHistoryDto })
+  cycles: CycleHistoryDto[]
 }
 
 export class PeriodTrackerSummaryDto {

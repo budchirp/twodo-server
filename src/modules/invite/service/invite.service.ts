@@ -7,7 +7,7 @@ import { Couple } from '@/modules/couple/entity/couple.entity'
 import type { InviteDto } from '@/modules/invite/dto/response.dto'
 import { User } from '@/modules/user/entity/user.entity'
 import { InviteMapper } from '@/modules/invite/invite.mapper'
-import { DataSource, In, Repository } from 'typeorm'
+import { DataSource, In, type Repository } from 'typeorm'
 import { InjectRepository } from '@nestjs/typeorm'
 import { HttpStatus, Injectable } from '@nestjs/common'
 

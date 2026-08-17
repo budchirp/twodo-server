@@ -1,5 +1,13 @@
 {
   "success": "Success",
+  "calendar.estimated_period": "Estimated Period",
+  "calendar.estimated_ovulation_day": "Estimated Ovulation Day",
+  "calendar.ovulation_window": "Ovulation Window",
+  "calendar.prediction_disclaimer": "Predictions are estimates for menstrual cycle tracking and are not medical advice.",
+  "calendar.basis.no_period_history": "No period history",
+  "calendar.basis.baseline_from_latest_period": "Baseline from latest period",
+  "calendar.basis.tensorflow_weighted_regression_model": "TensorFlow weighted regression model",
+  "calendar.basis.tensorflow_weighted_average_model": "TensorFlow weighted average model",
   "error.auth_server_error": "Auth server error",
   "error.auth_server_unavailable": "Auth server unavailable",
   "error.calendar_entry_not_found": "Calendar entry not found",

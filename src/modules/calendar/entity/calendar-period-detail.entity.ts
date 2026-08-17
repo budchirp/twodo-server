@@ -1,5 +1,5 @@
 import { Column, Entity, Index, JoinColumn, OneToOne, PrimaryGeneratedColumn } from 'typeorm'
-import {
+import type {
   CalendarFlowLevel,
   CalendarPeriodEvent,
   CalendarPeriodSymptom

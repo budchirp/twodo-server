@@ -1,19 +1,15 @@
 import {
   CalendarActivityType,
-  CalendarEjaculationLocation,
-  CalendarFlowLevel,
+  type CalendarFlowLevel,
   CalendarPeriodEvent,
-  CalendarPeriodSymptom,
-  CalendarProtectionMethod
+  type CalendarPeriodSymptom
 } from '@/modules/calendar/entity/calendar.enums'
 import type {
   CalendarEntryDto,
   CalendarPredictionSummaryDto,
-  PeriodPredictionDto,
-  PeriodRangeDto,
-  PeriodTrackerSummaryDto
+  PeriodRangeDto
 } from '@/modules/calendar/dto/response.dto'
-import {
+import type {
   CreateCalendarEntryDto,
   ListCalendarEntriesDto,
   UpdateCalendarEntryDto
@@ -24,20 +20,17 @@ import {
   daysBetween,
   parseDateString
 } from '@/modules/calendar/util/calendar-date.util'
-import { PregnancyAssessmentService } from '@/modules/calendar/service/pregnancy-assessment.service'
-import { CalendarSexualActivityDetail } from '@/modules/calendar/entity/calendar-sexual-activity-detail.entity'
 import { MenstrualCyclePredictionService } from '@/modules/calendar/service/menstrual-cycle-prediction.service'
-import { FertilityWindowService } from '@/modules/calendar/service/fertility-window.service'
-import { ConceptionRiskService } from '@/modules/calendar/service/conception-risk.service'
-import { Between, DataSource, EntityManager, LessThanOrEqual, Repository } from 'typeorm'
+import { Between, DataSource, type EntityManager, LessThanOrEqual, type Repository } from 'typeorm'
 import { CalendarPeriodDetail } from '@/modules/calendar/entity/calendar-period-detail.entity'
 import { PeriodTrackerService } from '@/modules/calendar/service/period-tracker.service'
 import { CoupleMember } from '@/modules/couple/entity/couple-member.entity'
 import { isUserProfileCompleted } from '@/modules/user/util/user-profile.util'
 import { CalendarEntry } from '@/modules/calendar/entity/calendar-entry.entity'
-import { User, UserGender } from '@/modules/user/entity/user.entity'
+import { type User, UserGender } from '@/modules/user/entity/user.entity'
 import { ApiException } from '@/core/exception/api.exception'
 import { CalendarMapper } from '@/modules/calendar/calendar.mapper'
+import { I18nService } from '@/core/i18n/i18n.service'
 import { InjectRepository } from '@nestjs/typeorm'
 import { HttpStatus, Injectable } from '@nestjs/common'
 
@@ -48,10 +41,8 @@ export class CalendarService {
   constructor(
     private readonly dataSource: DataSource,
     private readonly predictions: MenstrualCyclePredictionService,
-    private readonly fertilityWindowService: FertilityWindowService,
-    private readonly conceptionRiskService: ConceptionRiskService,
-    private readonly pregnancyAssessmentService: PregnancyAssessmentService,
     private readonly periodTracker: PeriodTrackerService,
+    private readonly i18n: I18nService,
     @InjectRepository(CalendarEntry)
     private readonly entries: Repository<CalendarEntry>,
     @InjectRepository(CoupleMember)
@@ -106,23 +97,17 @@ export class CalendarService {
         )
       }
 
-      if (body.type === CalendarActivityType.SexualActivity && body.sexualActivity) {
-        await manager.save(
-          CalendarSexualActivityDetail,
-          manager.create(CalendarSexualActivityDetail, {
-            entryId: entry.id,
-            ...this.createSexualActivityDetail(body.sexualActivity)
-          })
-        )
-      }
-
       return entry.id
     })
 
     return CalendarMapper.toCalendarEntryResponse(await this.entryById(entryId))
   }
 
-  async listEntries(user: User | null, query: ListCalendarEntriesDto): Promise<CalendarEntryDto[]> {
+  async listEntries(
+    user: User | null,
+    query: ListCalendarEntriesDto,
+    acceptLanguage?: string | string[]
+  ): Promise<CalendarEntryDto[]> {
     const currentUser = this.completedUser(user)
     const membership = await this.currentMembership(currentUser)
     this.validateDateRange(query.startDate, query.endDate)
@@ -137,8 +122,7 @@ export class CalendarService {
       },
       relations: {
         createdByUser: true,
-        periodDetail: true,
-        sexualActivityDetail: true
+        periodDetail: true
       },
       order: { date: 'ASC', createdAt: 'ASC' }
     })
@@ -183,10 +167,9 @@ export class CalendarService {
                     id: `period-prediction-${date}`,
                     date,
                     type: CalendarActivityType.PeriodPrediction,
-                    notes: 'Estimated Period',
+                    notes: this.i18n.translate('calendar.estimated_period', acceptLanguage),
                     createdBy: null,
                     period: null,
-                    sexualActivity: null,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                   })
@@ -206,11 +189,14 @@ export class CalendarService {
                     id: `ovulation-${date}`,
                     date,
                     type: CalendarActivityType.Ovulation,
-                    notes:
-                      date === peakOvulationDate ? 'Estimated Ovulation Day' : 'Fertile Window',
+                    notes: this.i18n.translate(
+                      date === peakOvulationDate
+                        ? 'calendar.estimated_ovulation_day'
+                        : 'calendar.ovulation_window',
+                      acceptLanguage
+                    ),
                     createdBy: null,
                     period: null,
-                    sexualActivity: null,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                   })
@@ -300,12 +286,6 @@ export class CalendarService {
       } else {
         await this.savePeriodDetail(manager, entry, body)
       }
-
-      if (nextType !== CalendarActivityType.SexualActivity) {
-        await manager.delete(CalendarSexualActivityDetail, { entryId: entry.id })
-      } else {
-        await this.saveSexualActivityDetail(manager, entry, body)
-      }
     })
 
     return CalendarMapper.toCalendarEntryResponse(await this.entryById(entry.id))
@@ -324,41 +304,23 @@ export class CalendarService {
     return null
   }
 
-  async getPredictionSummary(user: User | null): Promise<CalendarPredictionSummaryDto> {
+  async getPredictionSummary(
+    user: User | null,
+    acceptLanguage?: string | string[]
+  ): Promise<CalendarPredictionSummaryDto> {
     const ranges = await this.periodRanges(user)
     const prediction = this.predictions.predict(ranges)
-    const fertilityWindow = this.fertilityWindowService.estimateFertilityWindow(prediction)
-    const sexualActivityEntries = await this.sexualActivityEntries(user)
-    const conceptionRisk = this.conceptionRiskService.assessRisk(
-      sexualActivityEntries,
-      fertilityWindow
-    )
-    const pregnancyAssessment = this.pregnancyAssessmentService.assessPregnancyStatus(
-      prediction,
-      fertilityWindow,
-      conceptionRisk
-    )
+    const cycles = this.periodTracker.cycleHistory(ranges)
 
     return {
-      cyclePrediction: prediction,
-      fertilityWindow,
-      conceptionRisk,
-      pregnancyAssessment
-    }
-  }
-
-  private async sexualActivityEntries(user: User | null): Promise<CalendarEntry[]> {
-    const currentUser = this.completedUser(user)
-    const membership = await this.currentMembership(currentUser)
-
-    return this.entries.find({
-      where: {
-        coupleId: membership.coupleId,
-        type: CalendarActivityType.SexualActivity
+      cyclePrediction: {
+        ...prediction,
+        basis: this.i18n.translate(prediction.basis, acceptLanguage),
+        disclaimer: this.i18n.translate(prediction.disclaimer, acceptLanguage)
       },
-      relations: { sexualActivityDetail: true },
-      order: { date: 'DESC' }
-    })
+      ranges,
+      cycles
+    }
   }
 
   private async periodRanges(user: User | null): Promise<PeriodRangeDto[]> {
@@ -413,8 +375,7 @@ export class CalendarService {
       where: { id },
       relations: {
         createdByUser: true,
-        periodDetail: true,
-        sexualActivityDetail: true
+        periodDetail: true
       }
     })
 
@@ -455,21 +416,13 @@ export class CalendarService {
 
   private validateCreatePayload(body: CreateCalendarEntryDto): void {
     if (body.type === CalendarActivityType.Period) {
-      if (!body.period || body.sexualActivity) {
+      if (!body.period) {
         throw new ApiException('error.invalid_activity_payload', HttpStatus.BAD_REQUEST)
       }
       return
     }
 
-    if (body.type === CalendarActivityType.SexualActivity) {
-      if (!body.sexualActivity || body.period) {
-        throw new ApiException('error.invalid_activity_payload', HttpStatus.BAD_REQUEST)
-      }
-      this.validateSexualActivityPayload(body.sexualActivity)
-      return
-    }
-
-    if (body.period || body.sexualActivity) {
+    if (body.period) {
       throw new ApiException('error.invalid_activity_payload', HttpStatus.BAD_REQUEST)
     }
   }
@@ -482,43 +435,13 @@ export class CalendarService {
     if (nextType === CalendarActivityType.Period) {
       const hasPeriodDetail = !!body.period || !!entry.periodDetail
       const canCreatePeriodDetail = !!entry.periodDetail || !!body.period?.event
-      if (!hasPeriodDetail || !canCreatePeriodDetail || body.sexualActivity) {
+      if (!hasPeriodDetail || !canCreatePeriodDetail) {
         throw new ApiException('error.invalid_activity_payload', HttpStatus.BAD_REQUEST)
       }
       return
     }
 
-    if (nextType === CalendarActivityType.SexualActivity) {
-      const hasSexualActivityDetail = !!body.sexualActivity || !!entry.sexualActivityDetail
-      const canCreateSexualActivityDetail =
-        !!entry.sexualActivityDetail ||
-        (body.sexualActivity?.sexOccurred !== undefined &&
-          body.sexualActivity.protectionMethod !== undefined &&
-          body.sexualActivity.ejaculationLocation !== undefined)
-      if (!hasSexualActivityDetail || !canCreateSexualActivityDetail || body.period) {
-        throw new ApiException('error.invalid_activity_payload', HttpStatus.BAD_REQUEST)
-      }
-      if (body.sexualActivity) {
-        this.validateSexualActivityPayload(this.mergeSexualActivityDetail(entry, body))
-      }
-      return
-    }
-
-    if (body.period || body.sexualActivity) {
-      throw new ApiException('error.invalid_activity_payload', HttpStatus.BAD_REQUEST)
-    }
-  }
-
-  private validateSexualActivityPayload(detail: Partial<CalendarSexualActivityDetail>): void {
-    const sexOccurred = detail.sexOccurred ?? false
-    const protectionMethod = detail.protectionMethod ?? CalendarProtectionMethod.None
-    const ejaculationLocation = detail.ejaculationLocation ?? CalendarEjaculationLocation.None
-
-    if (
-      !sexOccurred &&
-      (protectionMethod !== CalendarProtectionMethod.None ||
-        ejaculationLocation !== CalendarEjaculationLocation.None)
-    ) {
+    if (body.period) {
       throw new ApiException('error.invalid_activity_payload', HttpStatus.BAD_REQUEST)
     }
   }
@@ -672,28 +595,6 @@ export class CalendarService {
     await manager.save(CalendarPeriodDetail, detail)
   }
 
-  private createSexualActivityDetail(
-    detail: Partial<CalendarSexualActivityDetail>
-  ): Partial<CalendarSexualActivityDetail> {
-    const protectionMethod = detail.protectionMethod ?? CalendarProtectionMethod.None
-
-    return {
-      sexOccurred: detail.sexOccurred ?? false,
-      protectionMethod,
-      ejaculationLocation: detail.ejaculationLocation ?? CalendarEjaculationLocation.None
-    }
-  }
-
-  private mergeSexualActivityDetail(
-    entry: CalendarEntry,
-    body: UpdateCalendarEntryDto
-  ): Partial<CalendarSexualActivityDetail> {
-    return {
-      ...(entry.sexualActivityDetail ?? {}),
-      ...(body.sexualActivity ?? {})
-    }
-  }
-
   private async savePeriodDetail(
     manager: EntityManager,
     entry: CalendarEntry,
@@ -714,23 +615,5 @@ export class CalendarService {
     detail.symptoms = body.period?.symptoms ?? detail.symptoms ?? []
 
     await manager.save(CalendarPeriodDetail, detail)
-  }
-
-  private async saveSexualActivityDetail(
-    manager: EntityManager,
-    entry: CalendarEntry,
-    body: UpdateCalendarEntryDto
-  ): Promise<void> {
-    if (!body.sexualActivity && entry.sexualActivityDetail) {
-      return
-    }
-
-    const merged = this.createSexualActivityDetail(this.mergeSexualActivityDetail(entry, body))
-    const detail =
-      entry.sexualActivityDetail ??
-      manager.create(CalendarSexualActivityDetail, { entryId: entry.id })
-
-    Object.assign(detail, merged)
-    await manager.save(CalendarSexualActivityDetail, detail)
   }
 }

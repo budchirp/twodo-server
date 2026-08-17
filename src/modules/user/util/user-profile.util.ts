@@ -1,4 +1,4 @@
-import { User, UserGender } from '@/modules/user/entity/user.entity'
+import { type User, UserGender } from '@/modules/user/entity/user.entity'
 
 export function isUserGender(value: unknown): value is UserGender {
   return value === UserGender.Female || value === UserGender.Male

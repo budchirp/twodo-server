@@ -7,7 +7,7 @@ import type { NoteDto } from '@/modules/note/dto/response.dto'
 import { InjectRepository } from '@nestjs/typeorm'
 import { HttpStatus, Injectable } from '@nestjs/common'
 import { NoteMapper } from '@/modules/note/note.mapper'
-import { Repository } from 'typeorm'
+import type { Repository } from 'typeorm'
 
 @Injectable()
 export class NoteService {

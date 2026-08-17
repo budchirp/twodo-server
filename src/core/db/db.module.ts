@@ -9,7 +9,7 @@ import { Module } from '@nestjs/common'
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         type: 'better-sqlite3',
-        database: config.getOrThrow<string>('DATABASE_PATH'),
+        database: config.getOrThrow<string>('DB_PATH'),
         entities,
         synchronize: true
       })
